@@ -1,0 +1,2 @@
+# Demo state incl. throwaway holder keypairs; never commit.
+.state/

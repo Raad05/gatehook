@@ -1,0 +1,16 @@
+{
+  "name": "gatehook",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "build:program": "anchor build --arch v1",
+    "generate": "pnpm --filter @gatehook/sdk generate",
+    "typecheck": "pnpm -r typecheck",
+    "test:sdk": "pnpm --filter @gatehook/sdk test"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "7.0.2"
+  }
+}
