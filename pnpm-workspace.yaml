@@ -1,5 +1,6 @@
 packages:
   - sdk
   - scripts
+  - oracle
 allowBuilds:
   esbuild: true

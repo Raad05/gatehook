@@ -7,7 +7,9 @@
     "build:program": "anchor build --arch v1",
     "generate": "pnpm --filter @gatehook/sdk generate",
     "typecheck": "pnpm -r typecheck",
-    "test:sdk": "pnpm --filter @gatehook/sdk test"
+    "test:sdk": "pnpm --filter @gatehook/sdk test",
+    "test:oracle": "pnpm --filter @gatehook/oracle test",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@types/node": "24.19.0",

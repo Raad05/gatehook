@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./test/litesvm.ts",
+    "./testing/fixture": "./test/fixture.ts"
   },
   "scripts": {
     "generate": "tsx codama.ts",

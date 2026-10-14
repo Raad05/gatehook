@@ -34,11 +34,13 @@ passing the config, registry and both parties' identities.
 programs/gatehook/   Anchor program + LiteSVM tests
 sdk/                 @gatehook/sdk: generated client, rules builder, transfer builder, preflight
 scripts/             issuer CLI: create-mint, seed, demo-transfer
+oracle/              KYC oracle: provider webhooks -> wallet linking -> on-chain identities
 ```
 
 ## Prerequisites
 
-Rust 1.89 (via `rust-toolchain.toml`), Solana CLI 3.1, Anchor CLI 1.2, Node 22+, pnpm 11.
+Rust 1.89 (via `rust-toolchain.toml`), Solana CLI 3.1, Anchor CLI 1.2, Node 22+, pnpm 11,
+Docker (optional, for the oracle's Postgres).
 
 ## Build and test
 
@@ -48,7 +50,7 @@ anchor run test       # build + Rust tests
 pnpm install
 pnpm generate         # regenerate the SDK client after IDL changes
 pnpm typecheck
-pnpm test:sdk
+pnpm test             # SDK + oracle tests
 ```
 
 ## Local demo
@@ -66,6 +68,29 @@ CLUSTER=localnet pnpm demo-transfer   # two transfers pass, the one to mallory i
 Environment: `CLUSTER` (`localnet` | `devnet`), `RPC_URL`, `WS_URL`,
 `ISSUER_KEYPAIR` (default `~/.config/solana/id.json`), `ORACLE_KEYPAIR`
 (defaults to the issuer).
+
+## KYC oracle
+
+The oracle turns KYC provider decisions into on-chain `Identity` accounts.
+
+1. The provider calls `POST /webhooks/kyc` (signed; replayed and out-of-order events are ignored).
+2. The issuer's investor portal links a wallet: `POST /wallets/:wallet/challenge`, the
+   investor signs the returned message, then `POST /wallets/:wallet/link`.
+3. A worker reconciles each linked wallet: approved → `upsert_identity`; rejected or
+   revoked → attestation expired (`kyc_expiry = 0`); unchanged → nothing sent.
+
+```bash
+cd oracle
+docker compose up -d                 # Postgres on 127.0.0.1:5434 (ORACLE_PG_PORT to change)
+cp .env.example .env                 # set REGISTRY, API_KEY, MOCK_WEBHOOK_SECRET, ORACLE_KEYPAIR
+pnpm start
+pnpm dev:cli webhook inv-001 approved --tier non_us --country DE
+pnpm dev:cli link inv-001 ~/investor-keypair.json
+```
+
+`ORACLE_KEYPAIR` must be the registry's oracle key (`ORACLE_KEYPAIR` in `create-mint`).
+Admin endpoints (`GET /applicants/:id`, `GET /jobs`, `POST /jobs/:id/retry`) need
+`Authorization: Bearer $API_KEY`. Use `DATABASE_URL=pglite://.pglite` to run without Docker.
 
 ## SDK example
 

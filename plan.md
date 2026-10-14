@@ -55,8 +55,8 @@
 | 2 | Hook core: `init_extra_account_metas` + `execute` with all rules, real `transfer_checked` tests | ✅ Done |
 | 3 | Rule test matrix: one test per rejection + boundaries, CU budget (27.6k CU per hooked transfer) | ✅ Done |
 | 4 | TS SDK (Codama + helpers) and issuer scripts (`create-mint`, `seed`, `demo-transfer`) | ✅ Done |
-| 5 | KYC oracle service (Fastify, Postgres, provider webhook, tx worker) | ⏳ Next |
-| 6 | Devnet deploy, CI, security review, issuer runbook + DEX integration guide | Planned |
+| 5 | KYC oracle service: signed provider webhooks, wallet linking, reconcile worker, expiry sweeper | ✅ Done |
+| 6 | Devnet deploy, CI, security review, issuer runbook + DEX integration guide | ⏳ Next |
 
 ### Tech stack
 
@@ -66,7 +66,7 @@
 | Program tests | LiteSVM (Rust) with the bundled Token-2022 program |
 | SDK | TypeScript 7, `@solana/kit` 8.4, `@solana-program/token-2022` 0.19, Codama-generated client |
 | SDK tests | vitest + litesvm (Node) against the built program |
-| Oracle (M5) | Node 22+, Fastify, Postgres (Drizzle), pluggable KYC provider (Sumsub/Persona), mock provider for dev |
+| Oracle | Node 22+, Fastify 5, Postgres via Drizzle (PGlite in tests), zod; pluggable `KycProvider` (mock now, Sumsub/Persona adapters later) |
 | Keys (prod) | Registry admin = Squads multisig; oracle signer in KMS |
 
 ### Hook rules (`execute`, evaluated in order)
@@ -81,6 +81,14 @@
 8. Global lockup and sender's holding period have passed (Issuer tier exempt).
 9. Sender's rolling velocity window stays within the per-tier limit (counters written back).
 
+### Oracle service (`oracle/`)
+
+- `POST /webhooks/kyc` — provider callback, HMAC-signed with a timestamp (5-min tolerance); event ids deduplicated; events reviewed before the stored decision are ignored.
+- `POST /wallets/:wallet/challenge` → `POST /wallets/:wallet/link` — the issuer's investor portal (which authenticated the investor) proves wallet ownership with an ed25519 signature over a single-use, 10-minute challenge. One applicant per wallet.
+- Worker — one "reconcile wallet" job per wallet (deduplicated while pending, `SKIP LOCKED` claims, exponential backoff, `failed` after 8 attempts, `POST /jobs/:id/retry`). Each run recomputes desired state from DB + chain: upsert, expire, or noop — safe to retry.
+- Sweeper — flags approvals expiring within `EXPIRY_WARNING_DAYS`; enforcement is on-chain.
+- Every route except `/health` and the webhook requires `Authorization: Bearer <API_KEY>`. All actions land in `audit_log`.
+
 ### Key decisions
 
 - Mint config creation requires the mint's hook program = gatehook and hook authority = registry admin (no configs on someone else's mint).
@@ -88,6 +96,8 @@
 - No tier is exempt from KYC expiry; venues/issuer get far-future expiry instead (rules stay data-driven).
 - Identities are passed to the hook unchecked and validated by owner + discriminator + field match (cheaper than PDA derivation, clearer errors).
 - Errors and jurisdiction indices are append-only (client API / on-chain data).
+- The oracle never closes identities: KYC rejection/revocation sets `kyc_expiry = 0`, so an admin freeze and velocity counters survive a later re-approval.
+- The oracle is an internal service: investors never call it directly; the issuer's portal authenticates them and relays wallet signatures.
 
 ### Open risks
 

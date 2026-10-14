@@ -114,7 +114,12 @@ velocity limits. Product spec + milestone status: `plan.md`. Usage: `README.md`.
   - `src/{jurisdictions,rules,transfer,preflight}.ts` — hand-written helpers
   - `test/` — vitest + litesvm (Node) against the built `.so`
 - `scripts/` — issuer CLI: `create-mint`, `seed`, `demo-transfer` (state in gitignored `scripts/.state/`)
-- Planned: `oracle/` (KYC oracle service, milestone 5)
+- `oracle/` — `@gatehook/oracle` KYC oracle (Fastify + Drizzle/Postgres)
+  - `src/app.ts` routes, `src/worker.ts` job runner, `src/chain.ts` (`Chain` interface, `RpcChain`)
+  - `src/domain/` — `decisions` (webhook → applicant), `link` (wallet proof), `reconcile` (desired vs on-chain), `jobs` (queue), `sweeper`
+  - `src/providers/` — `KycProvider` interface + `MockKycProvider`; `src/dev/cli.ts` sends signed mock webhooks / links wallets
+  - `drizzle/` — SQL migrations (generated; applied on startup)
+  - `test/` — unit + integration (PGlite + LiteSVM, `test/harness.ts`)
 
 ### Commands
 
@@ -125,7 +130,11 @@ pnpm install
 pnpm generate           # regenerate sdk/src/generated from target/idl/gatehook.json
 pnpm typecheck          # tsc for sdk + scripts
 pnpm test:sdk           # vitest (needs a fresh target/deploy/gatehook.so)
+pnpm test:oracle        # oracle unit + integration tests
+pnpm test               # all TS tests
 CLUSTER=localnet pnpm --filter @gatehook/scripts create-mint|seed|demo-transfer
+cd oracle && docker compose up -d && cp .env.example .env   # then fill REGISTRY, API_KEY, MOCK_WEBHOOK_SECRET
+pnpm --filter @gatehook/oracle start | dev:cli webhook <id> approved | db:generate
 ```
 
 ### Conventions (do not break)
@@ -137,5 +146,8 @@ CLUSTER=localnet pnpm --filter @gatehook/scripts create-mint|seed|demo-transfer
 - **Hook account order** (`execute`): 0 source, 1 mint, 2 destination, 3 authority, 4 extra-metas, 5 config, 6 registry, 7 sender identity (writable), 8 recipient identity. Identities derive from token-account **owners**, not the authority.
 - **Keep in sync:** any rule change in `hook/execute.rs` must be mirrored in `sdk/src/preflight.ts` (same check order); parity is tested in `sdk/test/transfer.test.ts`. After any IDL change: `anchor run build && pnpm generate`.
 - **Separation of powers:** only the oracle writes identities; admin controls config/pause/freeze. Admin-as-delegate transfers (permanent-delegate clawback) bypass holder rules and emit `TransferApproved { forced: true }`.
+- **Oracle never closes identities.** Revocation = upsert with `kycExpiry = 0` (preserves admin freeze + velocity). `revoke_identity` stays an admin tool.
+- **Oracle jobs recompute state at run time** (`domain/reconcile.ts`); never put desired params in the job row. Pass the injected `now` into anything that writes timestamps compared by the worker.
+- **Schema changes:** edit `oracle/src/db/schema.ts`, then `pnpm --filter @gatehook/oracle db:generate --name <change>`; commit the SQL.
 - **JS deps** pinned to exact versions at least 2 weeks old. Program code uses `error::ensure()` (not `require!`) when the error is chosen at runtime.
 - Per milestone: update `plan.md` status, these docs and CCE (`record_decision` / `record_code_area`), then commit and push.

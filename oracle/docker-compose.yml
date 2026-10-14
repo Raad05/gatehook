@@ -1,0 +1,15 @@
+# Local Postgres for the oracle: docker compose up -d
+name: gatehook-oracle
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: gatehook
+      POSTGRES_PASSWORD: gatehook
+      POSTGRES_DB: gatehook_oracle
+    ports:
+      - "${ORACLE_PG_PORT:-5434}:5432"
+    volumes:
+      - oracle-pg:/var/lib/postgresql/data
+volumes:
+  oracle-pg:
