@@ -1,7 +1,9 @@
 [package]
 name = "gatehook"
 version = "0.1.0"
-description = "Created with Anchor"
+description = "Token-2022 transfer-hook compliance engine for RWA tokens"
+license = "MIT"
+authors = ["Yamin Raad"]
 edition.workspace = true
 rust-version.workspace = true
 

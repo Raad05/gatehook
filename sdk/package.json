@@ -2,6 +2,8 @@
   "name": "@gatehook/sdk",
   "version": "0.1.0",
   "description": "TypeScript client for Gatehook, a Token-2022 transfer-hook compliance engine for RWA tokens on Solana",
+  "license": "MIT",
+  "author": "Yamin Raad",
   "keywords": [
     "solana",
     "token-2022",
@@ -41,7 +43,8 @@
     "dist",
     "src",
     "!src/**/*.test.ts",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "generate": "tsx codama.ts",

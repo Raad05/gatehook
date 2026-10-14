@@ -138,3 +138,7 @@ const ix = await getCompliantTransferInstruction({
 
 Generic integrators can use `getTransferCheckedWithTransferHookInstructionAsync`
 from `@solana-program/token-2022` instead; it produces the same accounts.
+
+## License
+
+[MIT](LICENSE)

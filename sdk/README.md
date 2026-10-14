@@ -86,3 +86,7 @@ ESM only. Requires Node 20.18+ or a modern bundler.
 
 More: [DEX integration guide](https://github.com/Raad05/gatehook/blob/main/docs/dex-integration.md) ·
 [issuer runbook](https://github.com/Raad05/gatehook/blob/main/docs/issuer-runbook.md).
+
+## License
+
+MIT
