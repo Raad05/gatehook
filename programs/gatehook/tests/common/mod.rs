@@ -74,6 +74,18 @@ impl Ctx {
             .map_err(|e| format!("{:?}", e.err))
     }
 
+    /// Like `send`, returning compute units consumed on success.
+    pub fn send_cu(&mut self, ixs: &[Instruction], signers: &[&Keypair]) -> Result<u64, String> {
+        self.svm.expire_blockhash();
+        let blockhash = self.svm.latest_blockhash();
+        let msg = Message::new_with_blockhash(ixs, Some(&signers[0].pubkey()), &blockhash);
+        let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), signers).unwrap();
+        self.svm
+            .send_transaction(tx)
+            .map(|meta| meta.compute_units_consumed)
+            .map_err(|e| format!("{:?}", e.err))
+    }
+
     pub fn fetch<T: AccountDeserialize>(&self, address: &Pubkey) -> Option<T> {
         let account = self.svm.get_account(address)?;
         if account.data.is_empty() {
@@ -410,6 +422,16 @@ pub fn identity_params(tier: Tier) -> IdentityParams {
         jurisdiction: JURISDICTION_US,
         kyc_expiry: i64::MAX,
         lockup_until: 0,
+    }
+}
+
+/// Asserts `result` failed with `error`'s custom code.
+#[track_caller]
+pub fn assert_err(result: Result<(), String>, error: impl Into<u32>) {
+    let expected = code(error);
+    match result {
+        Ok(()) => panic!("expected {expected}, transaction succeeded"),
+        Err(e) => assert!(e.contains(&expected), "expected {expected}, got {e}"),
     }
 }
 

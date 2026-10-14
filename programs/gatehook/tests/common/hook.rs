@@ -79,7 +79,13 @@ impl HookFixture {
 
     /// Owner-signed transfer.
     pub fn transfer(&mut self, from: &Holder, to: &Holder, amount: u64) -> Result<(), String> {
-        let ix = self.ctx.transfer_ix(
+        let ix = self.transfer_ix(from, to, amount);
+        let signer = from.wallet.insecure_clone();
+        self.ctx.send(&[ix], &[&signer])
+    }
+
+    pub fn transfer_ix(&self, from: &Holder, to: &Holder, amount: u64) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ctx.transfer_ix(
             &from.token,
             &self.mint,
             &to.token,
@@ -87,9 +93,17 @@ impl HookFixture {
             &from.wallet.pubkey(),
             &to.wallet.pubkey(),
             amount,
-        );
-        let signer = from.wallet.insecure_clone();
-        self.ctx.send(&[ix], &[&signer])
+        )
+    }
+
+    pub fn identity(&self, wallet: &Pubkey) -> gatehook::Identity {
+        self.ctx.fetch(&identity_pda(&self.ctx.registry, wallet)).unwrap()
+    }
+
+    pub fn update_rules(&mut self, rules: ComplianceRules) {
+        let issuer = self.issuer();
+        let ix = self.ctx.update_config_ix(&issuer.pubkey(), &self.mint, rules);
+        self.admin_send(ix);
     }
 
     pub fn admin_send(&mut self, ix: anchor_lang::solana_program::instruction::Instruction) {

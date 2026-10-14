@@ -54,3 +54,66 @@ impl ComplianceRules {
         tier != Tier::None && self.allowed_tiers & (1u8 << tier as u8) != 0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rules(jurisdictions: &[u8], tiers: &[Tier]) -> ComplianceRules {
+        let mut allowed_jurisdictions = [0u64; 4];
+        for j in jurisdictions {
+            allowed_jurisdictions[(*j / 64) as usize] |= 1 << (*j % 64);
+        }
+        ComplianceRules {
+            max_tx_amount: 0,
+            velocity_window_secs: 0,
+            velocity_limit_per_tier: [0; N_TIERS],
+            lockup_until: 0,
+            reg_s_compliance_until: 0,
+            allowed_jurisdictions,
+            allowed_tiers: tiers.iter().fold(0, |acc, t| acc | 1 << *t as u8),
+        }
+    }
+
+    #[test]
+    fn jurisdiction_bitmap_word_boundaries() {
+        let r = rules(&[1, 63, 64, 127, 128, 255], &[]);
+        for j in [1, 63, 64, 127, 128, 255] {
+            assert!(r.jurisdiction_allowed(j), "{j}");
+        }
+        for j in [2, 62, 65, 126, 129, 254] {
+            assert!(!r.jurisdiction_allowed(j), "{j}");
+        }
+    }
+
+    #[test]
+    fn unset_jurisdiction_never_allowed() {
+        let r = rules(&[0, 1], &[]);
+        assert!(!r.jurisdiction_allowed(JURISDICTION_UNSET));
+    }
+
+    #[test]
+    fn tier_bitmap() {
+        let r = rules(&[], &[Tier::RegDAccredited, Tier::Venue]);
+        assert!(r.tier_allowed(Tier::RegDAccredited));
+        assert!(r.tier_allowed(Tier::Venue));
+        assert!(!r.tier_allowed(Tier::RegSNonUs));
+        assert!(!r.tier_allowed(Tier::Issuer));
+    }
+
+    #[test]
+    fn tier_none_never_allowed() {
+        let r = rules(&[], &[Tier::None, Tier::RegDAccredited]);
+        assert!(!r.tier_allowed(Tier::None));
+    }
+
+    #[test]
+    fn velocity_limit_requires_window() {
+        let mut r = rules(&[], &[]);
+        assert!(r.validate().is_ok());
+        r.velocity_limit_per_tier[1] = 1;
+        assert!(r.validate().is_err());
+        r.velocity_window_secs = 1;
+        assert!(r.validate().is_ok());
+    }
+}
