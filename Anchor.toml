@@ -1,0 +1,21 @@
+skip_local_validator = true
+
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+gatehook = "HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+# SBPF v3 (anchor 1.2 default) is inactive on devnet/mainnet as of 2026-10; build v1.
+build = "anchor build --arch v1"
+test = "anchor build --arch v1 && cargo test"
+
+[hooks]
