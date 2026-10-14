@@ -43,7 +43,7 @@ import {
   getComplianceRulesEncoder,
   type ComplianceRules,
   type ComplianceRulesArgs,
-} from "../types";
+} from "../types/index.ts";
 
 export const COMPLIANCE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array =
   new Uint8Array([157, 84, 248, 198, 253, 41, 75, 251]);

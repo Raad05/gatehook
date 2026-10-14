@@ -6,15 +6,15 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./acceptAdmin";
-export * from "./execute";
-export * from "./initExtraAccountMetas";
-export * from "./initMintConfig";
-export * from "./initRegistry";
-export * from "./proposeAdmin";
-export * from "./revokeIdentity";
-export * from "./setIdentityFrozen";
-export * from "./setOracle";
-export * from "./setPause";
-export * from "./updateConfig";
-export * from "./upsertIdentity";
+export * from "./acceptAdmin.ts";
+export * from "./execute.ts";
+export * from "./initExtraAccountMetas.ts";
+export * from "./initMintConfig.ts";
+export * from "./initRegistry.ts";
+export * from "./proposeAdmin.ts";
+export * from "./revokeIdentity.ts";
+export * from "./setIdentityFrozen.ts";
+export * from "./setOracle.ts";
+export * from "./setPause.ts";
+export * from "./updateConfig.ts";
+export * from "./upsertIdentity.ts";

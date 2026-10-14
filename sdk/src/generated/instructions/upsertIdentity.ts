@@ -48,14 +48,14 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { findIdentityPda } from "../pdas";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { findIdentityPda } from "../pdas/index.ts";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 import {
   getTierDecoder,
   getTierEncoder,
   type Tier,
   type TierArgs,
-} from "../types";
+} from "../types/index.ts";
 
 export const UPSERT_IDENTITY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
   [23, 25, 150, 63, 56, 121, 130, 198],

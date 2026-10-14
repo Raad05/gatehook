@@ -55,7 +55,7 @@ It mirrors the hook's checks in order using two RPC requests. The chain stays au
 ## Errors
 
 The hook fails with custom program errors (Anchor offset 6000). Decode with
-`getGatehookErrorMessage(code)` / `isGatehookError` from `@gatehook/sdk`.
+`getComplianceErrorMessage(code)` (works in production bundles) / `isGatehookError` from `@gatehook/sdk`.
 
 | Code | Name | Meaning |
 |---|---|---|

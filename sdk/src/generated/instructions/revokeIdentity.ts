@@ -39,7 +39,7 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 
 export const REVOKE_IDENTITY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
   [61, 145, 66, 66, 182, 179, 250, 211],

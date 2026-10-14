@@ -46,6 +46,7 @@ programs/gatehook/   Anchor program + LiteSVM tests
 sdk/                 @gatehook/sdk: generated client, rules builder, transfer builder, preflight
 scripts/             issuer CLI: create-mint, seed, demo-transfer
 oracle/              KYC oracle: provider webhooks -> wallet linking -> on-chain identities
+portal/              demo investor portal: sign in, KYC, link wallet, hold & transfer
 docs/                deployments, security review, issuer runbook, DEX integration
 ```
 
@@ -77,6 +78,13 @@ CLUSTER=localnet pnpm seed            # treasury, alice (US), bob (DE, Reg S), m
 CLUSTER=localnet pnpm demo-transfer   # two transfers pass, the one to mallory is rejected
 ```
 
+Onboard a single wallet without the oracle (issuer/oracle key signs):
+
+```bash
+CLUSTER=devnet pnpm attest --wallet <address> --tier non_us --country DE --send 10   # attest + send 10 tokens
+CLUSTER=devnet pnpm attest --wallet <address> --expire                               # expire its KYC
+```
+
 Environment: `CLUSTER` (`localnet` | `devnet`), `RPC_URL`, `WS_URL`,
 `ISSUER_KEYPAIR` (default `~/.config/solana/id.json`), `ORACLE_KEYPAIR`
 (defaults to the issuer).
@@ -104,7 +112,18 @@ pnpm dev:cli link inv-001 ~/investor-keypair.json
 Admin endpoints (`GET /applicants/:id`, `GET /jobs`, `POST /jobs/:id/retry`) need
 `Authorization: Bearer $API_KEY`. Use `DATABASE_URL=pglite://.pglite` to run without Docker.
 
-## SDK example
+## Investor portal
+
+A reference web app for investors: sign in, verify identity, link a wallet (browser
+extension or test burner wallet), then hold and transfer with live compliance checks.
+See [`portal/README.md`](portal/README.md).
+
+## SDK
+
+`@gatehook/sdk` is ready to publish (ESM, typed, `@solana/kit` peer); see [`sdk/README.md`](sdk/README.md).
+Until it's on npm, build a tarball with `cd sdk && pnpm pack` and install that.
+
+### Example
 
 ```ts
 import { getCompliantTransferInstruction, preflightTransferFromChain } from '@gatehook/sdk';

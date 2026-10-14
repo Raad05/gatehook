@@ -40,8 +40,8 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { findConfigPda, findExtraAccountMetaListPda } from "../pdas";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { findConfigPda, findExtraAccountMetaListPda } from "../pdas/index.ts";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 
 export const INIT_EXTRA_ACCOUNT_METAS_DISCRIMINATOR: ReadonlyUint8Array =
   new Uint8Array([9, 67, 237, 214, 19, 39, 118, 118]);

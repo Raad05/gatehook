@@ -3,9 +3,8 @@
 //
 //   CLUSTER=localnet pnpm demo-transfer
 import {
-  type GatehookError,
   getCompliantTransferInstruction,
-  getGatehookErrorMessage,
+  getComplianceErrorMessage,
   preflightTransferFromChain,
 } from '@gatehook/sdk';
 import { type Address, isSolanaError, type KeyPairSigner } from '@solana/kit';
@@ -62,7 +61,7 @@ async function transfer(label: string, from: KeyPairSigner, to: KeyPairSigner, a
     console.log(`on-chain: confirmed ${explorer(sig)}`);
   } catch (error) {
     const code = customCode(error);
-    const reason = code !== undefined ? getGatehookErrorMessage(code as GatehookError) : String(error);
+    const reason = code !== undefined ? getComplianceErrorMessage(code) : String(error);
     console.log(`on-chain: rejected - ${reason}${code !== undefined ? ` (${code})` : ''}`);
   }
 }

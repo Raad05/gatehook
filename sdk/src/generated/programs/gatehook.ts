@@ -44,7 +44,7 @@ import {
   type IdentityArgs,
   type Registry,
   type RegistryArgs,
-} from "../accounts";
+} from "../accounts/index.ts";
 import {
   getAcceptAdminInstruction,
   getExecuteInstruction,
@@ -94,13 +94,13 @@ import {
   type SetPauseInput,
   type UpdateConfigInput,
   type UpsertIdentityAsyncInput,
-} from "../instructions";
+} from "../instructions/index.ts";
 import {
   findConfigPda,
   findExtraAccountMetaListPda,
   findIdentityPda,
   findRegistryPda,
-} from "../pdas";
+} from "../pdas/index.ts";
 
 export const GATEHOOK_PROGRAM_ADDRESS =
   "HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA" as Address<"HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA">;

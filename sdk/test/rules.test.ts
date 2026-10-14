@@ -62,3 +62,21 @@ describe('rules', () => {
     expect(() => buildComplianceRules({ jurisdictions: [], tiers: [Tier.None] })).toThrow();
   });
 });
+
+describe('error messages', () => {
+  it('table matches the generated messages and works without NODE_ENV', async () => {
+    const { GATEHOOK_ERROR_MESSAGES, getComplianceErrorMessage, getGatehookErrorMessage } = await import('../src/index.ts');
+    const codes = Object.keys(GATEHOOK_ERROR_MESSAGES).map(Number);
+    expect(codes.length).toBeGreaterThanOrEqual(26);
+    for (const code of codes) {
+      expect(getComplianceErrorMessage(code)).toBe(getGatehookErrorMessage(code as never));
+    }
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(getComplianceErrorMessage(6011)).toBe('Recipient has no identity in this registry');
+    } finally {
+      process.env.NODE_ENV = env;
+    }
+  });
+});

@@ -41,6 +41,9 @@ Investor onboarding:
    signs the message in their wallet, the portal calls `/wallets/:wallet/link`.
 3. The worker writes the identity on-chain. Check with `GET /jobs?wallet=<address>`.
 
+`portal/` is a reference implementation of this flow (demo sign-in and KYC). For one-off
+wallets (venues, testing) skip the oracle: `pnpm attest --wallet <address> --tier venue --days 3650`.
+
 ## 3. Issue supply
 
 Mint only to token accounts whose owner has a valid identity — normally the treasury
@@ -52,7 +55,7 @@ passes the hook.
 | Task | How |
 |---|---|
 | Change rules (caps, jurisdictions, tiers, lockups, velocity) | `update_config` (admin). Applies to the next transfer. |
-| Whitelist an AMM pool / escrow | Have the oracle attest the pool's **owner PDA** with tier `Venue`, far-future expiry. Trades through un-attested pools fail. |
+| Whitelist an AMM pool / escrow | Attest the pool's **owner PDA** with tier `Venue`, far-future expiry: `pnpm attest --wallet <pool owner> --tier venue --days 3650`. Trades through un-attested pools fail. |
 | KYC expiring soon | Oracle logs/audits `kyc_expiring` (`EXPIRY_WARNING_DAYS`). Enforcement is automatic at expiry. |
 | Failed oracle jobs | `GET /jobs?status=failed`, fix the cause (RPC, oracle SOL balance), `POST /jobs/:id/retry`. |
 | Fund the oracle | Each new identity costs rent (~0.002 SOL). Alert on low balance. |

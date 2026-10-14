@@ -15,7 +15,6 @@ import {
   findConfigPda,
   findIdentityPda,
   type GatehookError,
-  getGatehookErrorMessage,
   type Identity,
   type Registry,
   Tier,
@@ -37,6 +36,7 @@ import {
   GATEHOOK_ERROR__VELOCITY_LIMIT_EXCEEDED,
   JURISDICTION_US,
 } from './generated/index.ts';
+import { getComplianceErrorMessage } from './errors.ts';
 import { isJurisdictionAllowed, isTierAllowed } from './rules.ts';
 
 export type PreflightInput = {
@@ -58,7 +58,7 @@ export type PreflightResult =
   | { ok: true; forced: boolean }
   | { ok: false; code: GatehookError; message: string };
 
-const reject = (code: GatehookError): PreflightResult => ({ ok: false, code, message: getGatehookErrorMessage(code) });
+const reject = (code: GatehookError): PreflightResult => ({ ok: false, code, message: getComplianceErrorMessage(code) });
 
 const SENDER_ERRORS = [
   GATEHOOK_ERROR__SENDER_FROZEN,

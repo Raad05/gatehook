@@ -12,7 +12,7 @@ import {
   type SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
   type SolanaError,
 } from "@solana/kit";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 
 /** NotAdmin: Signer is not the registry admin */
 export const GATEHOOK_ERROR__NOT_ADMIN = 0x1770; // 6000

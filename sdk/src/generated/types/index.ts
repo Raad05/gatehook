@@ -6,5 +6,5 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./complianceRules";
-export * from "./tier";
+export * from "./complianceRules.ts";
+export * from "./tier.ts";

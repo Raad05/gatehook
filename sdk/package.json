@@ -1,29 +1,68 @@
 {
   "name": "@gatehook/sdk",
   "version": "0.1.0",
-  "private": true,
+  "description": "TypeScript client for Gatehook, a Token-2022 transfer-hook compliance engine for RWA tokens on Solana",
+  "keywords": [
+    "solana",
+    "token-2022",
+    "transfer-hook",
+    "rwa",
+    "compliance",
+    "kyc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Raad05/gatehook.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://github.com/Raad05/gatehook/tree/main/sdk#readme",
   "type": "module",
-  "main": "./src/index.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.18"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./testing": "./test/litesvm.ts",
     "./testing/fixture": "./test/fixture.ts"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "types": "./dist/index.d.ts",
+    "main": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "README.md"
+  ],
   "scripts": {
     "generate": "tsx codama.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "peerDependencies": {
+    "@solana/kit": "^8.4.0"
+  },
   "dependencies": {
-    "@solana-program/system": "0.15.0",
-    "@solana-program/token-2022": "0.19.0",
-    "@solana/kit": "8.4.0",
-    "@solana/program-client-core": "8.4.0",
-    "@solana/sysvars": "8.4.0"
+    "@solana-program/token-2022": "^0.19.0",
+    "@solana/program-client-core": "^8.4.0",
+    "@solana/sysvars": "^8.4.0"
   },
   "devDependencies": {
     "@codama/nodes-from-anchor": "1.5.6",
     "@codama/renderers-js": "2.5.0",
+    "@solana-program/system": "0.15.0",
+    "@solana/kit": "8.4.0",
     "codama": "1.11.0",
     "litesvm": "1.5.0",
     "tsx": "4.23.15",

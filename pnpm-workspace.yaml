@@ -2,5 +2,6 @@ packages:
   - sdk
   - scripts
   - oracle
+  - portal
 allowBuilds:
   esbuild: true

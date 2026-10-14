@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./config";
-export * from "./extraAccountMetaList";
-export * from "./identity";
-export * from "./registry";
+export * from "./config.ts";
+export * from "./extraAccountMetaList.ts";
+export * from "./identity.ts";
+export * from "./registry.ts";

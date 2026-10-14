@@ -1,0 +1,42 @@
+{
+  "name": "@gatehook/portal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:server": "tsx watch --env-file-if-exists=.env server/main.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.5",
+    "@gatehook/oracle": "workspace:*",
+    "@gatehook/sdk": "workspace:*",
+    "@solana-program/system": "0.15.0",
+    "@solana-program/token-2022": "0.19.0",
+    "@solana/kit": "8.4.0",
+    "@solana/react": "8.4.0",
+    "@wallet-standard/react": "1.0.3",
+    "fastify": "5.12.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "concurrently": "10.0.5",
+    "litesvm": "1.5.0",
+    "tsx": "4.23.15",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

@@ -39,13 +39,13 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 import {
   getComplianceRulesDecoder,
   getComplianceRulesEncoder,
   type ComplianceRules,
   type ComplianceRulesArgs,
-} from "../types";
+} from "../types/index.ts";
 
 export const UPDATE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
   29, 158, 252, 191, 10, 83, 219, 99,

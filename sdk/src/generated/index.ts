@@ -6,11 +6,11 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./accounts";
-export * from "./constants";
-export * from "./errors";
-export * from "./events";
-export * from "./instructions";
-export * from "./pdas";
-export * from "./programs";
-export * from "./types";
+export * from "./accounts/index.ts";
+export * from "./constants/index.ts";
+export * from "./errors/index.ts";
+export * from "./events/index.ts";
+export * from "./instructions/index.ts";
+export * from "./pdas/index.ts";
+export * from "./programs/index.ts";
+export * from "./types/index.ts";

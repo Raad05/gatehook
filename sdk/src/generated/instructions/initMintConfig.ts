@@ -40,14 +40,14 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { findConfigPda } from "../pdas";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { findConfigPda } from "../pdas/index.ts";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 import {
   getComplianceRulesDecoder,
   getComplianceRulesEncoder,
   type ComplianceRules,
   type ComplianceRulesArgs,
-} from "../types";
+} from "../types/index.ts";
 
 export const INIT_MINT_CONFIG_DISCRIMINATOR: ReadonlyUint8Array =
   new Uint8Array([111, 227, 18, 213, 241, 50, 150, 160]);

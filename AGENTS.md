@@ -60,9 +60,10 @@ velocity limits. Product spec + milestone status: `plan.md`. Usage: `README.md`.
   - `src/generated/` — Codama output; **never edit by hand**
   - `src/{jurisdictions,rules,transfer,preflight}.ts` — hand-written helpers
   - `test/` — vitest + litesvm (Node) against the built `.so`
+- `portal/` — `@gatehook/portal` demo investor portal: `server/` (Fastify; holds the oracle API key; demo session/KYC/faucet) + `client/` (React 19 + Vite, Wallet Standard + burner wallet, SDK preflight/transfer); `test/` runs against an in-process oracle
 - `docs/` — `deployments.md` (devnet addresses), `security-review.md`, `issuer-runbook.md`, `dex-integration.md`
 - `.github/workflows/ci.yml` — fmt, build (v1), clippy `-D warnings`, cargo test; then generated-SDK drift check, typecheck, TS tests
-- `scripts/` — issuer CLI: `create-mint`, `seed`, `demo-transfer` (state in gitignored `scripts/.state/`)
+- `scripts/` — issuer CLI: `create-mint`, `seed`, `demo-transfer`, `attest` (one wallet, no oracle) (state in gitignored `scripts/.state/`)
 - `oracle/` — `@gatehook/oracle` KYC oracle (Fastify + Drizzle/Postgres)
   - `src/app.ts` routes, `src/worker.ts` job runner, `src/chain.ts` (`Chain` interface, `RpcChain`)
   - `src/domain/` — `decisions` (webhook → applicant), `link` (wallet proof), `reconcile` (desired vs on-chain), `jobs` (queue), `sweeper`
@@ -86,6 +87,8 @@ CLUSTER=localnet pnpm --filter @gatehook/scripts create-mint|seed|demo-transfer
 solana program deploy target/deploy/gatehook.so --program-id target/deploy/gatehook-keypair.json -ud   # upgrade devnet
 cd oracle && docker compose up -d && cp .env.example .env   # then fill REGISTRY, API_KEY, MOCK_WEBHOOK_SECRET
 pnpm --filter @gatehook/oracle start | dev:cli webhook <id> approved | db:generate
+pnpm --filter @gatehook/portal dev | build | start | test
+pnpm --filter @gatehook/sdk build && (cd sdk && pnpm pack)   # publishable tarball (dist/ via publishConfig)
 ```
 
 ### Conventions (do not break)
@@ -102,5 +105,8 @@ pnpm --filter @gatehook/oracle start | dev:cli webhook <id> approved | db:genera
 - **Oracle never closes identities.** Revocation = upsert with `kycExpiry = 0` (preserves admin freeze + velocity). `revoke_identity` stays an admin tool.
 - **Oracle jobs recompute state at run time** (`domain/reconcile.ts`); never put desired params in the job row. Pass the injected `now` into anything that writes timestamps compared by the worker.
 - **Schema changes:** edit `oracle/src/db/schema.ts`, then `pnpm --filter @gatehook/oracle db:generate --name <change>`; commit the SQL.
+- **SDK packaging:** in the workspace `@gatehook/sdk` exports TS sources; `publishConfig` swaps to `dist/` on pack/publish. Codama emits `.ts` import extensions (`importExtension: 'ts'`), rewritten to `.js` by `tsconfig.build.json`. Published deps use caret ranges, `@solana/kit` is a peer.
+- **Error messages in apps:** use `getComplianceErrorMessage` (generated `sdk/src/generated/errorMessages.ts`); Codama's `getGatehookErrorMessage` returns a placeholder when `NODE_ENV=production`. Client code should pass kit errors through `portal/client/errors.ts`-style handling (kit strips messages in prod).
+- **Portal secrets:** the oracle API key must only live in the portal server; demo env vars (`DEMO_*`) must never be set in production.
 - **JS deps** pinned to exact versions at least 2 weeks old. Program code uses `error::ensure()` (not `require!`) when the error is chosen at runtime.
 - Per milestone: update `plan.md` status, these docs and CCE (`record_decision` / `record_code_area`), then commit and push.

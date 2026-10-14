@@ -41,7 +41,7 @@ import {
   type ResolvedInstructionAccount,
   type ResolvedInstructionAccountMeta,
 } from "@solana/program-client-core";
-import { GATEHOOK_PROGRAM_ADDRESS } from "../programs";
+import { GATEHOOK_PROGRAM_ADDRESS } from "../programs/index.ts";
 
 export const SET_PAUSE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
   63, 32, 154, 2, 56, 103, 79, 45,

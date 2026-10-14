@@ -47,7 +47,7 @@ import {
   getTierEncoder,
   type Tier,
   type TierArgs,
-} from "../types";
+} from "../types/index.ts";
 
 export const IDENTITY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
   58, 132, 5, 12, 176, 164, 85, 112,

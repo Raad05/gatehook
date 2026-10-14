@@ -122,3 +122,12 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # Publishable build (strict nodenext resolution) + pack contents.
+      - name: Build SDK package
+        run: |
+          pnpm --filter @gatehook/sdk build
+          cd sdk && pnpm pack --pack-destination "$RUNNER_TEMP"
+
+      - name: Build portal
+        run: pnpm --filter @gatehook/portal build

@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit",
     "create-mint": "tsx src/create-mint.ts",
     "seed": "tsx src/seed.ts",
-    "demo-transfer": "tsx src/demo-transfer.ts"
+    "demo-transfer": "tsx src/demo-transfer.ts",
+    "attest": "tsx src/attest.ts"
   },
   "dependencies": {
     "@gatehook/sdk": "workspace:*",

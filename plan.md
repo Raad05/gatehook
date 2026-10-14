@@ -58,6 +58,8 @@
 | 5 | KYC oracle service: signed provider webhooks, wallet linking, reconcile worker, expiry sweeper | ✅ Done |
 | 6 | Security review + fixes, CI, devnet deploy, issuer runbook + DEX integration guide | ✅ Done |
 
+**Consumer tooling (after M6):** publishable `@gatehook/sdk` (ESM `dist/`, `@solana/kit` peer, production-safe error messages), `pnpm attest` for one-off wallets, and a reference investor portal (`portal/`) verified end to end in a browser on devnet.
+
 **Next (pre-mainnet):** independent audit, real KYC provider adapter, multisig custody for all authorities — see [`docs/issuer-runbook.md`](docs/issuer-runbook.md#mainnet-checklist).
 
 Docs: [deployments](docs/deployments.md) · [security review](docs/security-review.md) · [issuer runbook](docs/issuer-runbook.md) · [DEX integration](docs/dex-integration.md)

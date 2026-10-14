@@ -6,6 +6,6 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./complianceConfig";
-export * from "./identity";
-export * from "./registry";
+export * from "./complianceConfig.ts";
+export * from "./identity.ts";
+export * from "./registry.ts";
