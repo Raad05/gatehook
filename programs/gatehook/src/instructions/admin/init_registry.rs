@@ -26,7 +26,8 @@ pub fn handle_init_registry(ctx: Context<InitRegistry>, oracle: Pubkey) -> Resul
         admin: issuer,
         oracle,
         bump: ctx.bumps.registry,
-        reserved: [0; 64],
+        pending_admin: Pubkey::default(),
+        reserved: [0; 32],
     });
     Ok(())
 }

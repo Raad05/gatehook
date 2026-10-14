@@ -10,7 +10,11 @@ use {
 fn setup_identity(ctx: &mut Ctx) -> anchor_lang::prelude::Pubkey {
     let oracle = ctx.oracle.insecure_clone();
     let wallet = Keypair::new().pubkey();
-    let ix = ctx.upsert_identity_ix(&oracle.pubkey(), wallet, identity_params(Tier::RegDAccredited));
+    let ix = ctx.upsert_identity_ix(
+        &oracle.pubkey(),
+        wallet,
+        identity_params(Tier::RegDAccredited),
+    );
     ctx.send(&[ix], &[&oracle]).unwrap();
     wallet
 }
@@ -55,9 +59,16 @@ fn upsert_rejects_non_oracle() {
     let mut ctx = Ctx::new();
     let issuer = ctx.issuer.insecure_clone();
     // Even the admin cannot write attestations; only the oracle key can.
-    let ix = ctx.upsert_identity_ix(&issuer.pubkey(), Keypair::new().pubkey(), identity_params(Tier::RegDAccredited));
+    let ix = ctx.upsert_identity_ix(
+        &issuer.pubkey(),
+        Keypair::new().pubkey(),
+        identity_params(Tier::RegDAccredited),
+    );
     let err = ctx.send(&[ix], &[&issuer]).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::NotAdminOrOracle)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::NotAdminOrOracle)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -65,7 +76,11 @@ fn upsert_rejects_invalid_params() {
     let mut ctx = Ctx::new();
     let oracle = ctx.oracle.insecure_clone();
 
-    let ix = ctx.upsert_identity_ix(&oracle.pubkey(), Keypair::new().pubkey(), identity_params(Tier::None));
+    let ix = ctx.upsert_identity_ix(
+        &oracle.pubkey(),
+        Keypair::new().pubkey(),
+        identity_params(Tier::None),
+    );
     let err = ctx.send(&[ix], &[&oracle]).unwrap_err();
     assert!(err.contains(&code(ComplianceError::InvalidTier)), "{err}");
 
@@ -73,7 +88,10 @@ fn upsert_rejects_invalid_params() {
     params.jurisdiction = JURISDICTION_UNSET;
     let ix = ctx.upsert_identity_ix(&oracle.pubkey(), Keypair::new().pubkey(), params);
     let err = ctx.send(&[ix], &[&oracle]).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::InvalidJurisdiction)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::InvalidJurisdiction)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -87,7 +105,10 @@ fn freeze_by_admin_or_oracle_only() {
 
     let ix = ctx.set_identity_frozen_ix(&attacker.pubkey(), &wallet, true);
     let err = ctx.send(&[ix], &[&attacker]).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::NotAdminOrOracle)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::NotAdminOrOracle)),
+        "{err}"
+    );
 
     let ix = ctx.set_identity_frozen_ix(&issuer.pubkey(), &wallet, true);
     ctx.send(&[ix], &[&issuer]).unwrap();
@@ -107,7 +128,11 @@ fn upsert_preserves_freeze() {
 
     let ix = ctx.set_identity_frozen_ix(&issuer.pubkey(), &wallet, true);
     ctx.send(&[ix], &[&issuer]).unwrap();
-    let ix = ctx.upsert_identity_ix(&oracle.pubkey(), wallet, identity_params(Tier::QualifiedPurchaser));
+    let ix = ctx.upsert_identity_ix(
+        &oracle.pubkey(),
+        wallet,
+        identity_params(Tier::QualifiedPurchaser),
+    );
     ctx.send(&[ix], &[&oracle]).unwrap();
 
     let identity: Identity = ctx.fetch(&identity_pda(&ctx.registry, &wallet)).unwrap();
@@ -125,7 +150,10 @@ fn revoke_closes_identity_and_refunds_signer() {
 
     let ix = ctx.revoke_identity_ix(&attacker.pubkey(), &wallet);
     let err = ctx.send(&[ix], &[&attacker]).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::NotAdminOrOracle)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::NotAdminOrOracle)),
+        "{err}"
+    );
 
     let rent = ctx.svm.get_account(&pda).unwrap().lamports;
     let before = ctx.svm.get_balance(&issuer.pubkey()).unwrap();

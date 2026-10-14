@@ -73,7 +73,9 @@ impl HookFixture {
 
     pub fn upsert(&mut self, wallet: &Pubkey, params: IdentityParams) {
         let oracle = self.ctx.oracle.insecure_clone();
-        let ix = self.ctx.upsert_identity_ix(&oracle.pubkey(), *wallet, params);
+        let ix = self
+            .ctx
+            .upsert_identity_ix(&oracle.pubkey(), *wallet, params);
         self.ctx.send(&[ix], &[&oracle]).unwrap();
     }
 
@@ -84,7 +86,12 @@ impl HookFixture {
         self.ctx.send(&[ix], &[&signer])
     }
 
-    pub fn transfer_ix(&self, from: &Holder, to: &Holder, amount: u64) -> anchor_lang::solana_program::instruction::Instruction {
+    pub fn transfer_ix(
+        &self,
+        from: &Holder,
+        to: &Holder,
+        amount: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
         self.ctx.transfer_ix(
             &from.token,
             &self.mint,
@@ -97,12 +104,16 @@ impl HookFixture {
     }
 
     pub fn identity(&self, wallet: &Pubkey) -> gatehook::Identity {
-        self.ctx.fetch(&identity_pda(&self.ctx.registry, wallet)).unwrap()
+        self.ctx
+            .fetch(&identity_pda(&self.ctx.registry, wallet))
+            .unwrap()
     }
 
     pub fn update_rules(&mut self, rules: ComplianceRules) {
         let issuer = self.issuer();
-        let ix = self.ctx.update_config_ix(&issuer.pubkey(), &self.mint, rules);
+        let ix = self
+            .ctx
+            .update_config_ix(&issuer.pubkey(), &self.mint, rules);
         self.admin_send(ix);
     }
 

@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, Token2022};
-use spl_tlv_account_resolution::{account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList};
+use spl_tlv_account_resolution::{
+    account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList,
+};
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
 use crate::{
@@ -55,8 +57,12 @@ pub fn extra_account_metas() -> Result<Vec<ExtraAccountMeta>> {
     let identity_of = |token_index: u8, writable: bool| {
         ExtraAccountMeta::new_with_seeds(
             &[
-                Seed::Literal { bytes: IDENTITY_SEED.to_vec() },
-                Seed::AccountKey { index: REGISTRY_INDEX },
+                Seed::Literal {
+                    bytes: IDENTITY_SEED.to_vec(),
+                },
+                Seed::AccountKey {
+                    index: REGISTRY_INDEX,
+                },
                 Seed::AccountData {
                     account_index: token_index,
                     data_index: TOKEN_OWNER_OFFSET,
@@ -70,7 +76,9 @@ pub fn extra_account_metas() -> Result<Vec<ExtraAccountMeta>> {
     Ok(vec![
         ExtraAccountMeta::new_with_seeds(
             &[
-                Seed::Literal { bytes: CONFIG_SEED.to_vec() },
+                Seed::Literal {
+                    bytes: CONFIG_SEED.to_vec(),
+                },
                 Seed::AccountKey { index: MINT_INDEX },
             ],
             false,

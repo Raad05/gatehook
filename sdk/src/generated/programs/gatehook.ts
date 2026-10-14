@@ -46,40 +46,48 @@ import {
   type RegistryArgs,
 } from "../accounts";
 import {
+  getAcceptAdminInstruction,
   getExecuteInstruction,
   getInitExtraAccountMetasInstructionAsync,
   getInitMintConfigInstructionAsync,
   getInitRegistryInstructionAsync,
+  getProposeAdminInstruction,
   getRevokeIdentityInstruction,
   getSetIdentityFrozenInstruction,
   getSetOracleInstruction,
   getSetPauseInstruction,
   getUpdateConfigInstruction,
   getUpsertIdentityInstructionAsync,
+  parseAcceptAdminInstruction,
   parseExecuteInstruction,
   parseInitExtraAccountMetasInstruction,
   parseInitMintConfigInstruction,
   parseInitRegistryInstruction,
+  parseProposeAdminInstruction,
   parseRevokeIdentityInstruction,
   parseSetIdentityFrozenInstruction,
   parseSetOracleInstruction,
   parseSetPauseInstruction,
   parseUpdateConfigInstruction,
   parseUpsertIdentityInstruction,
+  type AcceptAdminInput,
   type ExecuteInput,
   type InitExtraAccountMetasAsyncInput,
   type InitMintConfigAsyncInput,
   type InitRegistryAsyncInput,
+  type ParsedAcceptAdminInstruction,
   type ParsedExecuteInstruction,
   type ParsedInitExtraAccountMetasInstruction,
   type ParsedInitMintConfigInstruction,
   type ParsedInitRegistryInstruction,
+  type ParsedProposeAdminInstruction,
   type ParsedRevokeIdentityInstruction,
   type ParsedSetIdentityFrozenInstruction,
   type ParsedSetOracleInstruction,
   type ParsedSetPauseInstruction,
   type ParsedUpdateConfigInstruction,
   type ParsedUpsertIdentityInstruction,
+  type ProposeAdminInput,
   type RevokeIdentityInput,
   type SetIdentityFrozenInput,
   type SetOracleInput,
@@ -171,10 +179,12 @@ export function identifyGatehookEvent(
 }
 
 export enum GatehookInstruction {
+  AcceptAdmin,
   Execute,
   InitExtraAccountMetas,
   InitMintConfig,
   InitRegistry,
+  ProposeAdmin,
   RevokeIdentity,
   SetIdentityFrozen,
   SetOracle,
@@ -187,6 +197,17 @@ export function identifyGatehookInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): GatehookInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([112, 42, 45, 90, 116, 181, 13, 170]),
+      ),
+      0,
+    )
+  ) {
+    return GatehookInstruction.AcceptAdmin;
+  }
   if (
     containsBytes(
       data,
@@ -230,6 +251,17 @@ export function identifyGatehookInstruction(
     )
   ) {
     return GatehookInstruction.InitRegistry;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([121, 214, 199, 212, 87, 39, 117, 234]),
+      ),
+      0,
+    )
+  ) {
+    return GatehookInstruction.ProposeAdmin;
   }
   if (
     containsBytes(
@@ -307,6 +339,9 @@ export type ParsedGatehookInstruction<
   TProgram extends string = "HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA",
 > =
   | ({
+      instructionType: GatehookInstruction.AcceptAdmin;
+    } & ParsedAcceptAdminInstruction<TProgram>)
+  | ({
       instructionType: GatehookInstruction.Execute;
     } & ParsedExecuteInstruction<TProgram>)
   | ({
@@ -318,6 +353,9 @@ export type ParsedGatehookInstruction<
   | ({
       instructionType: GatehookInstruction.InitRegistry;
     } & ParsedInitRegistryInstruction<TProgram>)
+  | ({
+      instructionType: GatehookInstruction.ProposeAdmin;
+    } & ParsedProposeAdminInstruction<TProgram>)
   | ({
       instructionType: GatehookInstruction.RevokeIdentity;
     } & ParsedRevokeIdentityInstruction<TProgram>)
@@ -342,6 +380,13 @@ export function parseGatehookInstruction<TProgram extends string>(
 ): ParsedGatehookInstruction<TProgram> {
   const instructionType = identifyGatehookInstruction(instruction);
   switch (instructionType) {
+    case GatehookInstruction.AcceptAdmin: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: GatehookInstruction.AcceptAdmin,
+        ...parseAcceptAdminInstruction(instruction),
+      };
+    }
     case GatehookInstruction.Execute: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -368,6 +413,13 @@ export function parseGatehookInstruction<TProgram extends string>(
       return {
         instructionType: GatehookInstruction.InitRegistry,
         ...parseInitRegistryInstruction(instruction),
+      };
+    }
+    case GatehookInstruction.ProposeAdmin: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: GatehookInstruction.ProposeAdmin,
+        ...parseProposeAdminInstruction(instruction),
       };
     }
     case GatehookInstruction.RevokeIdentity: {
@@ -439,6 +491,9 @@ export type GatehookPluginAccounts = {
 };
 
 export type GatehookPluginInstructions = {
+  acceptAdmin: (
+    input: AcceptAdminInput,
+  ) => ReturnType<typeof getAcceptAdminInstruction> & SelfPlanAndSendFunctions;
   execute: (
     input: ExecuteInput,
   ) => ReturnType<typeof getExecuteInstruction> & SelfPlanAndSendFunctions;
@@ -454,6 +509,9 @@ export type GatehookPluginInstructions = {
     input: InitRegistryAsyncInput,
   ) => ReturnType<typeof getInitRegistryInstructionAsync> &
     SelfPlanAndSendFunctions;
+  proposeAdmin: (
+    input: ProposeAdminInput,
+  ) => ReturnType<typeof getProposeAdminInstruction> & SelfPlanAndSendFunctions;
   revokeIdentity: (
     input: RevokeIdentityInput,
   ) => ReturnType<typeof getRevokeIdentityInstruction> &
@@ -506,6 +564,11 @@ export function gatehookProgram() {
           registry: addSelfFetchFunctions(client, getRegistryCodec()),
         },
         instructions: {
+          acceptAdmin: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAcceptAdminInstruction(input),
+            ),
           execute: (input) =>
             addSelfPlanAndSendFunctions(client, getExecuteInstruction(input)),
           initExtraAccountMetas: (input) =>
@@ -522,6 +585,11 @@ export function gatehookProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getInitRegistryInstructionAsync(input),
+            ),
+          proposeAdmin: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getProposeAdminInstruction(input),
             ),
           revokeIdentity: (input) =>
             addSelfPlanAndSendFunctions(

@@ -55,6 +55,8 @@ export type Registry = {
   /** Writes identity attestations. */
   oracle: Address;
   bump: number;
+  /** Proposed admin awaiting `accept_admin`; default = none. */
+  pendingAdmin: Address;
   reserved: ReadonlyUint8Array;
 };
 
@@ -67,6 +69,8 @@ export type RegistryArgs = {
   /** Writes identity attestations. */
   oracle: Address;
   bump: number;
+  /** Proposed admin awaiting `accept_admin`; default = none. */
+  pendingAdmin: Address;
   reserved: ReadonlyUint8Array;
 };
 
@@ -80,7 +84,8 @@ export function getRegistryEncoder(): FixedSizeEncoder<RegistryArgs> {
       ["admin", getAddressEncoder()],
       ["oracle", getAddressEncoder()],
       ["bump", getU8Encoder()],
-      ["reserved", fixEncoderSize(getBytesEncoder(), 64)],
+      ["pendingAdmin", getAddressEncoder()],
+      ["reserved", fixEncoderSize(getBytesEncoder(), 32)],
     ]),
     (value) => ({ ...value, discriminator: REGISTRY_DISCRIMINATOR }),
   );
@@ -95,7 +100,8 @@ export function getRegistryDecoder(): FixedSizeDecoder<Registry> {
     ["admin", getAddressDecoder()],
     ["oracle", getAddressDecoder()],
     ["bump", getU8Decoder()],
-    ["reserved", fixDecoderSize(getBytesDecoder(), 64)],
+    ["pendingAdmin", getAddressDecoder()],
+    ["reserved", fixDecoderSize(getBytesDecoder(), 32)],
   ]);
 }
 

@@ -5,7 +5,7 @@ import { buildApp } from './app.ts';
 import { RpcChain } from './chain.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db/client.ts';
-import { sweepExpiringKyc } from './domain/sweeper.ts';
+import { pruneLinkChallenges, sweepExpiringKyc } from './domain/sweeper.ts';
 import { MockKycProvider } from './providers/mock.ts';
 import type { KycProvider } from './providers/types.ts';
 import { runWorker } from './worker.ts';
@@ -30,10 +30,15 @@ const shutdown = new AbortController();
 const now = () => new Date();
 
 const worker = runWorker({ db, chain, now, log: app.log }, shutdown.signal);
-const sweep = () =>
-  sweepExpiringKyc(db, now(), config.EXPIRY_WARNING_DAYS)
-    .then((expiring) => expiring.length && app.log.info({ count: expiring.length }, 'KYC expiring soon'))
-    .catch((err: unknown) => app.log.error({ err }, 'sweep failed'));
+const sweep = async () => {
+  try {
+    const expiring = await sweepExpiringKyc(db, now(), config.EXPIRY_WARNING_DAYS);
+    if (expiring.length) app.log.info({ count: expiring.length }, 'KYC expiring soon');
+    await pruneLinkChallenges(db, now());
+  } catch (err) {
+    app.log.error({ err }, 'sweep failed');
+  }
+};
 void sweep();
 const sweeper = setInterval(sweep, 6 * 3_600_000);
 

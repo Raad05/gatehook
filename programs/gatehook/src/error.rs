@@ -53,6 +53,8 @@ pub enum ComplianceError {
     VelocityLimitExceeded,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Signer is not the pending admin")]
+    NotPendingAdmin,
 }
 
 /// `require!` for an error chosen at runtime (the macro only takes paths).

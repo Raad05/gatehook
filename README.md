@@ -1,5 +1,7 @@
 # Gatehook
 
+[![CI](https://github.com/Raad05/gatehook/actions/workflows/ci.yml/badge.svg)](https://github.com/Raad05/gatehook/actions/workflows/ci.yml)
+
 On-chain compliance for real-world-asset tokens on Solana. Gatehook is a
 [Token-2022 transfer hook](https://spl.solana.com/token-2022/extensions#transfer-hook)
 written in Anchor: every `transfer_checked` of a Gatehook mint is checked
@@ -15,6 +17,15 @@ per-tier rolling velocity limits. The issuer can claw back tokens via the
 mint's permanent delegate.
 
 See [`plan.md`](plan.md) for the architecture, rule order and roadmap.
+
+**Devnet:** program `HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA` with a demo token —
+see [`docs/deployments.md`](docs/deployments.md).
+
+| Doc | For |
+|---|---|
+| [Issuer runbook](docs/issuer-runbook.md) | creating tokens, operating the oracle, incidents, mainnet checklist |
+| [DEX integration](docs/dex-integration.md) | building hooked transfers, venue identities, error codes |
+| [Security review](docs/security-review.md) | findings, fixes, residual risks |
 
 ## How it works
 
@@ -35,6 +46,7 @@ programs/gatehook/   Anchor program + LiteSVM tests
 sdk/                 @gatehook/sdk: generated client, rules builder, transfer builder, preflight
 scripts/             issuer CLI: create-mint, seed, demo-transfer
 oracle/              KYC oracle: provider webhooks -> wallet linking -> on-chain identities
+docs/                deployments, security review, issuer runbook, DEX integration
 ```
 
 ## Prerequisites

@@ -25,6 +25,14 @@ pub mod gatehook {
         crate::instructions::admin::set_oracle::handle_set_oracle(ctx, oracle)
     }
 
+    pub fn propose_admin(ctx: Context<ProposeAdmin>, new_admin: Pubkey) -> Result<()> {
+        crate::instructions::admin::admin_transfer::handle_propose_admin(ctx, new_admin)
+    }
+
+    pub fn accept_admin(ctx: Context<AcceptAdmin>) -> Result<()> {
+        crate::instructions::admin::admin_transfer::handle_accept_admin(ctx)
+    }
+
     pub fn init_mint_config(ctx: Context<InitMintConfig>, rules: ComplianceRules) -> Result<()> {
         crate::instructions::admin::init_mint_config::handle_init_mint_config(ctx, rules)
     }
@@ -51,7 +59,7 @@ pub mod gatehook {
 
     pub fn revoke_identity(ctx: Context<ModifyIdentity>) -> Result<()> {
         crate::instructions::identity::revoke_identity::handle_revoke_identity(ctx)
-        }
+    }
 
     pub fn init_extra_account_metas(ctx: Context<InitExtraAccountMetas>) -> Result<()> {
         crate::instructions::hook::init_extra_account_metas::handle_init_extra_account_metas(ctx)

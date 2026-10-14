@@ -12,5 +12,7 @@ pub struct Registry {
     /// Writes identity attestations.
     pub oracle: Pubkey,
     pub bump: u8,
-    pub reserved: [u8; 64],
+    /// Proposed admin awaiting `accept_admin`; default = none.
+    pub pending_admin: Pubkey,
+    pub reserved: [u8; 32],
 }

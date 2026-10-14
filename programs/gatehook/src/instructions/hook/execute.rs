@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token_2022::spl_token_2022::{
-        extension::{transfer_hook::TransferHookAccount, BaseStateWithExtensions, StateWithExtensions},
+        extension::{
+            transfer_hook::TransferHookAccount, BaseStateWithExtensions, StateWithExtensions,
+        },
         state::Account as SplTokenAccount,
     },
     token_interface::{Mint, TokenAccount},
@@ -49,31 +51,37 @@ pub struct TransferApproved {
 
 pub fn handle_execute(ctx: Context<Execute>, amount: u64) -> Result<()> {
     let accounts = &ctx.accounts;
-    require!(is_transferring(&accounts.source_token)?, ComplianceError::NotTransferring);
+    require!(
+        is_transferring(&accounts.source_token)?,
+        ComplianceError::NotTransferring
+    );
 
     let from = accounts.source_token.owner;
     let to = accounts.destination_token.owner;
     let authority = accounts.authority.key();
 
+    let registry = accounts.registry.key();
+    let now = Clock::get()?.unix_timestamp;
+    let recipient = Identity::load(
+        &accounts.recipient_identity,
+        &registry,
+        &to,
+        ComplianceError::RecipientIdentityNotFound,
+    )?;
+
     // Admin acting as delegate over someone else's tokens (permanent-delegate
-    // clawback / court-ordered recovery) bypasses holder rules.
+    // clawback / court-ordered recovery) bypasses sender-side rules, pause,
+    // caps and lockups, but may still only move tokens to a valid recipient.
     let forced = authority == accounts.registry.admin && authority != from;
-    if !forced {
-        let registry = accounts.registry.key();
+    if forced {
+        check_holder(&accounts.config.rules, &recipient, now, RECIPIENT_ERRORS)?;
+    } else {
         let mut sender = Identity::load(
             &accounts.sender_identity,
             &registry,
             &from,
             ComplianceError::SenderIdentityNotFound,
         )?;
-        let recipient = Identity::load(
-            &accounts.recipient_identity,
-            &registry,
-            &to,
-            ComplianceError::RecipientIdentityNotFound,
-        )?;
-        let now = Clock::get()?.unix_timestamp;
-
         if check_transfer(&accounts.config, &mut sender, &recipient, amount, now)? {
             sender.try_serialize(&mut &mut accounts.sender_identity.try_borrow_mut_data()?[..])?;
         }
@@ -101,31 +109,14 @@ fn check_transfer(
     let rules = &config.rules;
     require!(!config.paused, ComplianceError::Paused);
     if rules.max_tx_amount > 0 {
-        require!(amount <= rules.max_tx_amount, ComplianceError::AmountExceedsMax);
+        require!(
+            amount <= rules.max_tx_amount,
+            ComplianceError::AmountExceedsMax
+        );
     }
 
-    check_holder(
-        rules,
-        sender,
-        now,
-        [
-            ComplianceError::SenderFrozen,
-            ComplianceError::SenderKycExpired,
-            ComplianceError::SenderTierNotAllowed,
-            ComplianceError::SenderJurisdictionNotAllowed,
-        ],
-    )?;
-    check_holder(
-        rules,
-        recipient,
-        now,
-        [
-            ComplianceError::RecipientFrozen,
-            ComplianceError::RecipientKycExpired,
-            ComplianceError::RecipientTierNotAllowed,
-            ComplianceError::RecipientJurisdictionNotAllowed,
-        ],
-    )?;
+    check_holder(rules, sender, now, SENDER_ERRORS)?;
+    check_holder(rules, recipient, now, RECIPIENT_ERRORS)?;
 
     if sender.tier == Tier::RegSNonUs && now < rules.reg_s_compliance_until {
         require!(
@@ -156,6 +147,19 @@ fn check_transfer(
     Ok(true)
 }
 
+const SENDER_ERRORS: [ComplianceError; 4] = [
+    ComplianceError::SenderFrozen,
+    ComplianceError::SenderKycExpired,
+    ComplianceError::SenderTierNotAllowed,
+    ComplianceError::SenderJurisdictionNotAllowed,
+];
+const RECIPIENT_ERRORS: [ComplianceError; 4] = [
+    ComplianceError::RecipientFrozen,
+    ComplianceError::RecipientKycExpired,
+    ComplianceError::RecipientTierNotAllowed,
+    ComplianceError::RecipientJurisdictionNotAllowed,
+];
+
 /// `errors` = [frozen, kyc expired, tier, jurisdiction] for this side.
 fn check_holder(
     rules: &ComplianceRules,
@@ -167,7 +171,10 @@ fn check_holder(
     ensure(!holder.frozen, frozen)?;
     ensure(holder.kyc_expiry > now, expired)?;
     ensure(rules.tier_allowed(holder.tier), tier)?;
-    ensure(rules.jurisdiction_allowed(holder.jurisdiction), jurisdiction)
+    ensure(
+        rules.jurisdiction_allowed(holder.jurisdiction),
+        jurisdiction,
+    )
 }
 
 /// Token-2022 sets `transferring` on the source account only for the

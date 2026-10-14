@@ -31,7 +31,10 @@ fn transfer_to_wallet_without_identity_fails() {
     let mallory = f.holder_without_identity(0);
 
     let err = f.transfer(&alice, &mallory, 1).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::RecipientIdentityNotFound)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::RecipientIdentityNotFound)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -41,7 +44,10 @@ fn transfer_from_wallet_without_identity_fails() {
     let bob = f.kyc_holder(0);
 
     let err = f.transfer(&mallory, &bob, 1).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::SenderIdentityNotFound)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::SenderIdentityNotFound)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -53,7 +59,11 @@ fn identity_from_other_registry_is_rejected() {
 
     let mut other = Ctx::new();
     let other_oracle = other.oracle.insecure_clone();
-    let ix = other.upsert_identity_ix(&other_oracle.pubkey(), bob.wallet.pubkey(), identity_params(Tier::RegDAccredited));
+    let ix = other.upsert_identity_ix(
+        &other_oracle.pubkey(),
+        bob.wallet.pubkey(),
+        identity_params(Tier::RegDAccredited),
+    );
     other.send(&[ix], &[&other_oracle]).unwrap();
     let foreign = identity_pda(&other.registry, &bob.wallet.pubkey());
     let account = other.svm.get_account(&foreign).unwrap();
@@ -64,7 +74,10 @@ fn identity_from_other_registry_is_rejected() {
         .unwrap();
 
     let err = f.transfer(&alice, &bob, 1).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::RecipientIdentityNotFound)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::RecipientIdentityNotFound)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -79,7 +92,9 @@ fn direct_execute_call_is_rejected() {
         AccountMeta::new_readonly(bob.token, false),
         AccountMeta::new_readonly(alice.wallet.pubkey(), true),
     ];
-    let extras = f.ctx.hook_extra_metas(&f.mint, &alice.wallet.pubkey(), &bob.wallet.pubkey());
+    let extras = f
+        .ctx
+        .hook_extra_metas(&f.mint, &alice.wallet.pubkey(), &bob.wallet.pubkey());
     accounts.push(extras[5].clone()); // validation account at index 4
     accounts.extend_from_slice(&extras[..4]);
     let ix = Instruction::new_with_bytes(
@@ -89,7 +104,10 @@ fn direct_execute_call_is_rejected() {
     );
     let signer = alice.wallet.insecure_clone();
     let err = f.ctx.send(&[ix], &[&signer]).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::NotTransferring)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::NotTransferring)),
+        "{err}"
+    );
 }
 
 #[test]
@@ -120,7 +138,10 @@ fn velocity_limit_tracks_and_resets_window() {
     f.transfer(&alice, &bob, 300).unwrap();
     f.transfer(&alice, &bob, 200).unwrap();
     let err = f.transfer(&alice, &bob, 1).unwrap_err();
-    assert!(err.contains(&code(ComplianceError::VelocityLimitExceeded)), "{err}");
+    assert!(
+        err.contains(&code(ComplianceError::VelocityLimitExceeded)),
+        "{err}"
+    );
 
     let identity: Identity = f
         .ctx
@@ -168,7 +189,10 @@ fn delegate_transfer_is_checked_against_owner_identity() {
     assert_eq!(f.ctx.token_balance(&bob.token), 100);
 
     let issuer = f.issuer();
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true),
+    );
     let err = f.ctx.send(&[delegated(&f)], &[&router]).unwrap_err();
     assert!(err.contains(&code(ComplianceError::SenderFrozen)), "{err}");
 }
@@ -183,7 +207,10 @@ fn admin_permanent_delegate_can_claw_back_from_frozen_holder() {
         token: f.ctx.create_token_account(&f.mint, &issuer.pubkey()),
     };
     f.upsert(&issuer.pubkey(), identity_params(Tier::Issuer));
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true),
+    );
 
     let ix = f.ctx.transfer_ix(
         &alice.token,
@@ -205,7 +232,10 @@ fn non_admin_delegate_gets_no_bypass() {
     let alice = f.kyc_holder(1_000);
     let bob = f.kyc_holder(0);
     let delegate = Keypair::new();
-    f.ctx.svm.airdrop(&delegate.pubkey(), 1_000_000_000).unwrap();
+    f.ctx
+        .svm
+        .airdrop(&delegate.pubkey(), 1_000_000_000)
+        .unwrap();
     let approve = spl_token_2022::instruction::approve(
         &spl_token_2022::ID,
         &alice.token,
@@ -218,7 +248,10 @@ fn non_admin_delegate_gets_no_bypass() {
     let signer = alice.wallet.insecure_clone();
     f.ctx.send(&[approve], &[&signer]).unwrap();
     let issuer = f.issuer();
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &alice.wallet.pubkey(), true),
+    );
 
     let ix = f.ctx.transfer_ix(
         &alice.token,
@@ -231,4 +264,64 @@ fn non_admin_delegate_gets_no_bypass() {
     );
     let err = f.ctx.send(&[ix], &[&delegate]).unwrap_err();
     assert!(err.contains(&code(ComplianceError::SenderFrozen)), "{err}");
+}
+
+#[test]
+fn admin_clawback_cannot_target_unverified_recipient() {
+    let mut f = HookFixture::with_permanent_delegate(default_rules());
+    let alice = f.kyc_holder(1_000);
+    let mallory = f.holder_without_identity(0);
+    let frozen = f.kyc_holder(0);
+    let issuer = f.issuer();
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &frozen.wallet.pubkey(), true),
+    );
+
+    let clawback_to = |f: &HookFixture, to: &Holder| {
+        f.ctx.transfer_ix(
+            &alice.token,
+            &f.mint,
+            &to.token,
+            &issuer.pubkey(),
+            &alice.wallet.pubkey(),
+            &to.wallet.pubkey(),
+            1,
+        )
+    };
+    let ix = clawback_to(&f, &mallory);
+    assert_err(
+        f.ctx.send(&[ix], &[&issuer]),
+        ComplianceError::RecipientIdentityNotFound,
+    );
+    let ix = clawback_to(&f, &frozen);
+    assert_err(
+        f.ctx.send(&[ix], &[&issuer]),
+        ComplianceError::RecipientFrozen,
+    );
+}
+
+#[test]
+fn admin_clawback_ignores_pause_and_sender_state() {
+    let mut f = HookFixture::with_permanent_delegate(default_rules());
+    let alice = f.kyc_holder(1_000);
+    let bob = f.kyc_holder(0);
+    let issuer = f.issuer();
+    f.admin_send(f.ctx.set_pause_ix(&issuer.pubkey(), &f.mint, true));
+    f.admin_send(
+        f.ctx
+            .revoke_identity_ix(&issuer.pubkey(), &alice.wallet.pubkey()),
+    );
+
+    let ix = f.ctx.transfer_ix(
+        &alice.token,
+        &f.mint,
+        &bob.token,
+        &issuer.pubkey(),
+        &alice.wallet.pubkey(),
+        &bob.wallet.pubkey(),
+        1_000,
+    );
+    f.admin_send(ix);
+    assert_eq!(f.ctx.token_balance(&bob.token), 1_000);
 }

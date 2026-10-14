@@ -22,7 +22,10 @@ fn fixture() -> HookFixture {
     f
 }
 
-fn params_with(tier: Tier, edit: impl FnOnce(&mut gatehook::IdentityParams)) -> gatehook::IdentityParams {
+fn params_with(
+    tier: Tier,
+    edit: impl FnOnce(&mut gatehook::IdentityParams),
+) -> gatehook::IdentityParams {
     let mut p = identity_params(tier);
     edit(&mut p);
     p
@@ -50,7 +53,10 @@ fn frozen_recipient_rejected() {
     let a = f.kyc_holder(1_000);
     let b = f.kyc_holder(0);
     let issuer = f.issuer();
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &b.wallet.pubkey(), true));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &b.wallet.pubkey(), true),
+    );
 
     assert_err(f.transfer(&a, &b, 1), E::RecipientFrozen);
 }
@@ -61,10 +67,16 @@ fn frozen_sender_rejected_until_unfrozen() {
     let a = f.kyc_holder(1_000);
     let b = f.kyc_holder(0);
     let issuer = f.issuer();
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &a.wallet.pubkey(), true));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &a.wallet.pubkey(), true),
+    );
     assert_err(f.transfer(&a, &b, 1), E::SenderFrozen);
 
-    f.admin_send(f.ctx.set_identity_frozen_ix(&issuer.pubkey(), &a.wallet.pubkey(), false));
+    f.admin_send(
+        f.ctx
+            .set_identity_frozen_ix(&issuer.pubkey(), &a.wallet.pubkey(), false),
+    );
     f.transfer(&a, &b, 1).unwrap();
 }
 
@@ -73,7 +85,10 @@ fn frozen_sender_rejected_until_unfrozen() {
 #[test]
 fn sender_kyc_expires_at_expiry_timestamp() {
     let mut f = fixture();
-    let a = f.holder(params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW + DAY), 1_000);
+    let a = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW + DAY),
+        1_000,
+    );
     let b = f.kyc_holder(0);
 
     f.ctx.set_time(NOW + DAY - 1);
@@ -86,7 +101,10 @@ fn sender_kyc_expires_at_expiry_timestamp() {
 fn recipient_kyc_expired_rejected() {
     let mut f = fixture();
     let a = f.kyc_holder(1_000);
-    let b = f.holder(params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW - 1), 0);
+    let b = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW - 1),
+        0,
+    );
 
     assert_err(f.transfer(&a, &b, 1), E::RecipientKycExpired);
 }
@@ -94,7 +112,10 @@ fn recipient_kyc_expired_rejected() {
 #[test]
 fn oracle_refresh_restores_expired_kyc() {
     let mut f = fixture();
-    let a = f.holder(params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW - 1), 1_000);
+    let a = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.kyc_expiry = NOW - 1),
+        1_000,
+    );
     let b = f.kyc_holder(0);
     assert_err(f.transfer(&a, &b, 1), E::SenderKycExpired);
 
@@ -144,7 +165,10 @@ fn tier_allowlist_change_applies_immediately() {
 #[test]
 fn sender_jurisdiction_not_allowed() {
     let mut f = fixture();
-    let a = f.holder(params_with(Tier::RegDAccredited, |p| p.jurisdiction = 77), 1_000);
+    let a = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.jurisdiction = 77),
+        1_000,
+    );
     let b = f.kyc_holder(0);
 
     assert_err(f.transfer(&a, &b, 1), E::SenderJurisdictionNotAllowed);
@@ -154,7 +178,10 @@ fn sender_jurisdiction_not_allowed() {
 fn recipient_jurisdiction_not_allowed() {
     let mut f = fixture();
     let a = f.kyc_holder(1_000);
-    let b = f.holder(params_with(Tier::RegDAccredited, |p| p.jurisdiction = 200), 0);
+    let b = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.jurisdiction = 200),
+        0,
+    );
 
     assert_err(f.transfer(&a, &b, 1), E::RecipientJurisdictionNotAllowed);
 }
@@ -223,7 +250,10 @@ fn global_lockup_blocks_until_timestamp() {
 #[test]
 fn holder_lockup_blocks_until_timestamp() {
     let mut f = fixture();
-    let a = f.holder(params_with(Tier::RegDAccredited, |p| p.lockup_until = NOW + 180 * DAY), 1_000);
+    let a = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.lockup_until = NOW + 180 * DAY),
+        1_000,
+    );
     let b = f.kyc_holder(0);
 
     assert_err(f.transfer(&a, &b, 1), E::HolderLockup);
@@ -235,7 +265,10 @@ fn holder_lockup_blocks_until_timestamp() {
 fn holder_lockup_does_not_block_receiving() {
     let mut f = fixture();
     let a = f.kyc_holder(1_000);
-    let b = f.holder(params_with(Tier::RegDAccredited, |p| p.lockup_until = NOW + DAY), 0);
+    let b = f.holder(
+        params_with(Tier::RegDAccredited, |p| p.lockup_until = NOW + DAY),
+        0,
+    );
 
     f.transfer(&a, &b, 1).unwrap();
 }
@@ -272,7 +305,10 @@ fn velocity_limits_are_per_tier() {
     // QP has no limit (0) and its counters are never touched.
     f.transfer(&qp, &b, 1_000).unwrap();
     let qp_identity = f.identity(&qp.wallet.pubkey());
-    assert_eq!((qp_identity.window_start, qp_identity.window_volume), (0, 0));
+    assert_eq!(
+        (qp_identity.window_start, qp_identity.window_volume),
+        (0, 0)
+    );
 }
 
 #[test]
@@ -317,7 +353,10 @@ fn revoked_identity_rejected() {
     let a = f.kyc_holder(1_000);
     let b = f.kyc_holder(0);
     let issuer = f.issuer();
-    f.admin_send(f.ctx.revoke_identity_ix(&issuer.pubkey(), &b.wallet.pubkey()));
+    f.admin_send(
+        f.ctx
+            .revoke_identity_ix(&issuer.pubkey(), &b.wallet.pubkey()),
+    );
 
     assert_err(f.transfer(&a, &b, 1), E::RecipientIdentityNotFound);
 }
@@ -357,8 +396,15 @@ fn self_transfer_between_own_accounts() {
 
 // ---- account substitution (direct calls; Anchor constraints run first) ----
 
-fn direct_execute(f: &mut HookFixture, from: &Holder, to: &Holder, edit: impl FnOnce(&mut Vec<AccountMeta>)) -> Result<(), String> {
-    let extras = f.ctx.hook_extra_metas(&f.mint, &from.wallet.pubkey(), &to.wallet.pubkey());
+fn direct_execute(
+    f: &mut HookFixture,
+    from: &Holder,
+    to: &Holder,
+    edit: impl FnOnce(&mut Vec<AccountMeta>),
+) -> Result<(), String> {
+    let extras = f
+        .ctx
+        .hook_extra_metas(&f.mint, &from.wallet.pubkey(), &to.wallet.pubkey());
     let mut accounts = vec![
         AccountMeta::new_readonly(from.token, false),
         AccountMeta::new_readonly(f.mint, false),
@@ -384,7 +430,10 @@ fn config_of_other_mint_rejected() {
     let b = f.kyc_holder(0);
     let issuer = f.issuer();
     let other_mint = f.ctx.create_hook_mint(&issuer.pubkey(), &gatehook::id());
-    f.admin_send(f.ctx.init_mint_config_ix(&issuer.pubkey(), &other_mint, default_rules()));
+    f.admin_send(
+        f.ctx
+            .init_mint_config_ix(&issuer.pubkey(), &other_mint, default_rules()),
+    );
 
     let res = direct_execute(&mut f, &a, &b, |acc| {
         acc[5] = AccountMeta::new_readonly(config_pda(&other_mint), false);

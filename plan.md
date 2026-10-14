@@ -56,7 +56,11 @@
 | 3 | Rule test matrix: one test per rejection + boundaries, CU budget (27.6k CU per hooked transfer) | ✅ Done |
 | 4 | TS SDK (Codama + helpers) and issuer scripts (`create-mint`, `seed`, `demo-transfer`) | ✅ Done |
 | 5 | KYC oracle service: signed provider webhooks, wallet linking, reconcile worker, expiry sweeper | ✅ Done |
-| 6 | Devnet deploy, CI, security review, issuer runbook + DEX integration guide | ⏳ Next |
+| 6 | Security review + fixes, CI, devnet deploy, issuer runbook + DEX integration guide | ✅ Done |
+
+**Next (pre-mainnet):** independent audit, real KYC provider adapter, multisig custody for all authorities — see [`docs/issuer-runbook.md`](docs/issuer-runbook.md#mainnet-checklist).
+
+Docs: [deployments](docs/deployments.md) · [security review](docs/security-review.md) · [issuer runbook](docs/issuer-runbook.md) · [DEX integration](docs/dex-integration.md)
 
 ### Tech stack
 
@@ -73,8 +77,8 @@
 
 1. Source account's Token-2022 `transferring` flag is set (blocks direct calls).
 2. Config belongs to the mint; registry matches the config.
-3. Admin acting as delegate over someone else's tokens (permanent-delegate clawback) → allowed, logged as `forced`.
-4. Sender and recipient identities exist in the mint's registry (looked up by token-account **owner**).
+3. Recipient identity exists in the mint's registry (looked up by token-account **owner**).
+4. Admin acting as delegate over someone else's tokens (permanent-delegate clawback) → only the recipient's freeze/KYC/tier/jurisdiction checks apply; logged as `forced`. Otherwise the sender identity must exist too.
 5. Mint not paused; amount ≤ per-transfer cap.
 6. For each side: not frozen, KYC not expired, tier allowed, jurisdiction allowed.
 7. Reg S sender → no US recipient until `reg_s_compliance_until`.
@@ -91,6 +95,7 @@
 
 ### Key decisions
 
+- Registry admin rotates in two steps (`propose_admin` → `accept_admin`); the registry PDA stays keyed by the original issuer.
 - Mint config creation requires the mint's hook program = gatehook and hook authority = registry admin (no configs on someone else's mint).
 - Only the oracle writes identities; oracle refreshes never clear an admin freeze or velocity counters.
 - No tier is exempt from KYC expiry; venues/issuer get far-future expiry instead (rules stay data-driven).
@@ -104,4 +109,4 @@
 - AMM pools and escrow PDAs need `Venue` identities or trades through them fail — define a venue whitelisting process.
 - DEXs must forward the hook's extra accounts (standard via `@solana-program/token-2022` / `@solana/spl-token` resolvers).
 - Reg D/S rule specifics to be confirmed with counsel; rules are config data, not code.
-- Upgrade authority and registry admin must move to a multisig before mainnet.
+- Upgrade authority and registry admin must move to a multisig before mainnet (devnet: deployer wallet).

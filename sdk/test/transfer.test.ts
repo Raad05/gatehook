@@ -15,6 +15,7 @@ import {
   getCompliantTransferInstruction,
   getSetPauseInstruction,
   preflightTransfer,
+  preflightTransferFromChain,
   type PreflightResult,
   Tier,
 } from '../src/index.ts';
@@ -34,7 +35,7 @@ async function compliantTransfer(f: Fixture, from: Holder, to: Holder, amount: b
   });
 }
 
-async function preflight(f: Fixture, from: Holder, to: Holder, amount: bigint): Promise<PreflightResult> {
+async function preflight(f: Fixture, from: Holder, to: Holder, amount: bigint, authority = from.wallet.address): Promise<PreflightResult> {
   const rpc = f.env.rpc();
   const [configAddress] = await findConfigPda({ mint: f.mint });
   const [[senderAddress], [recipientAddress]] = await Promise.all([
@@ -54,7 +55,7 @@ async function preflight(f: Fixture, from: Holder, to: Holder, amount: bigint): 
     recipient: recipient.exists ? recipient.data : null,
     sourceOwner: from.wallet.address,
     destinationOwner: to.wallet.address,
-    authority: from.wallet.address,
+    authority,
     amount,
     now: f.env.svm.getClock().unixTimestamp,
   });
@@ -100,6 +101,16 @@ describe('compliant transfers', () => {
 });
 
 describe('preflight parity with the on-chain hook', () => {
+  it('preflightTransferFromChain reads everything it needs from RPC', async () => {
+    const f = await Fixture.create();
+    const a = await f.holder(1_000n, { kycExpiry: NOW + 5n });
+    const b = await f.holder();
+    const input = { mint: f.mint, sourceOwner: a.wallet.address, destinationOwner: b.wallet.address, amount: 1n };
+    expect(await preflightTransferFromChain(f.env.rpc(), input)).toEqual({ ok: true, forced: false });
+    f.env.setTime(NOW + 5n); // clock comes from the Clock sysvar
+    expect(await preflightTransferFromChain(f.env.rpc(), input)).toMatchObject({ ok: false, code: GATEHOOK_ERROR__SENDER_KYC_EXPIRED });
+  });
+
   it('missing recipient identity', async () => {
     const f = await Fixture.create();
     const a = await f.holder(1_000n);
@@ -150,5 +161,43 @@ describe('preflight parity with the on-chain hook', () => {
     await expectParity(f, a, b, 40n, null);
     f.env.setTime(NOW + 3_600n);
     await expectParity(f, a, b, 100n, null);
+  });
+});
+
+describe('admin clawback (permanent delegate)', () => {
+  async function clawback(f: Fixture, from: Holder, to: Holder) {
+    const ix = await getCompliantTransferInstruction({
+      source: from.token,
+      destination: to.token,
+      mint: f.mint,
+      authority: f.issuer,
+      sourceOwner: from.wallet.address,
+      destinationOwner: to.wallet.address,
+      registry: f.registry,
+      amount: 1n,
+      decimals: DECIMALS,
+    });
+    return {
+      predicted: await preflight(f, from, to, 1n, f.issuer.address),
+      result: await f.env.send(f.issuer, [ix]),
+    };
+  }
+
+  it('allows clawback from a frozen-out sender to a valid recipient', async () => {
+    const f = await Fixture.create(DEFAULT_RULES, { permanentDelegate: true });
+    const a = await f.holder(1_000n, { kycExpiry: NOW }); // expired sender
+    const b = await f.holder();
+    const { predicted, result } = await clawback(f, a, b);
+    expect(predicted).toEqual({ ok: true, forced: true });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects clawback to an unverified recipient, matching preflight', async () => {
+    const f = await Fixture.create(DEFAULT_RULES, { permanentDelegate: true });
+    const a = await f.holder(1_000n);
+    const b = await f.holder(0n, null);
+    const { predicted, result } = await clawback(f, a, b);
+    expect(predicted).toMatchObject({ ok: false, code: GATEHOOK_ERROR__RECIPIENT_IDENTITY_NOT_FOUND });
+    expect(result).toMatchObject({ ok: false, code: GATEHOOK_ERROR__RECIPIENT_IDENTITY_NOT_FOUND });
   });
 });

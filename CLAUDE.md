@@ -113,6 +113,8 @@ velocity limits. Product spec + milestone status: `plan.md`. Usage: `README.md`.
   - `src/generated/` — Codama output; **never edit by hand**
   - `src/{jurisdictions,rules,transfer,preflight}.ts` — hand-written helpers
   - `test/` — vitest + litesvm (Node) against the built `.so`
+- `docs/` — `deployments.md` (devnet addresses), `security-review.md`, `issuer-runbook.md`, `dex-integration.md`
+- `.github/workflows/ci.yml` — fmt, build (v1), clippy `-D warnings`, cargo test; then generated-SDK drift check, typecheck, TS tests
 - `scripts/` — issuer CLI: `create-mint`, `seed`, `demo-transfer` (state in gitignored `scripts/.state/`)
 - `oracle/` — `@gatehook/oracle` KYC oracle (Fastify + Drizzle/Postgres)
   - `src/app.ts` routes, `src/worker.ts` job runner, `src/chain.ts` (`Chain` interface, `RpcChain`)
@@ -125,7 +127,8 @@ velocity limits. Product spec + milestone status: `plan.md`. Usage: `README.md`.
 
 ```bash
 anchor run build        # = anchor build --arch v1  (program + IDL)
-anchor run test         # build + cargo test (59 Rust tests)
+anchor run test         # build + cargo test
+cargo fmt --check && cargo clippy --all-targets -- -D warnings   # what CI enforces
 pnpm install
 pnpm generate           # regenerate sdk/src/generated from target/idl/gatehook.json
 pnpm typecheck          # tsc for sdk + scripts
@@ -133,6 +136,7 @@ pnpm test:sdk           # vitest (needs a fresh target/deploy/gatehook.so)
 pnpm test:oracle        # oracle unit + integration tests
 pnpm test               # all TS tests
 CLUSTER=localnet pnpm --filter @gatehook/scripts create-mint|seed|demo-transfer
+solana program deploy target/deploy/gatehook.so --program-id target/deploy/gatehook-keypair.json -ud   # upgrade devnet
 cd oracle && docker compose up -d && cp .env.example .env   # then fill REGISTRY, API_KEY, MOCK_WEBHOOK_SECRET
 pnpm --filter @gatehook/oracle start | dev:cli webhook <id> approved | db:generate
 ```
@@ -145,7 +149,9 @@ pnpm --filter @gatehook/oracle start | dev:cli webhook <id> approved | db:genera
 - **Account layouts** carry `version` + `reserved: [u8; 64]`; add fields by consuming reserved bytes.
 - **Hook account order** (`execute`): 0 source, 1 mint, 2 destination, 3 authority, 4 extra-metas, 5 config, 6 registry, 7 sender identity (writable), 8 recipient identity. Identities derive from token-account **owners**, not the authority.
 - **Keep in sync:** any rule change in `hook/execute.rs` must be mirrored in `sdk/src/preflight.ts` (same check order); parity is tested in `sdk/test/transfer.test.ts`. After any IDL change: `anchor run build && pnpm generate`.
-- **Separation of powers:** only the oracle writes identities; admin controls config/pause/freeze. Admin-as-delegate transfers (permanent-delegate clawback) bypass holder rules and emit `TransferApproved { forced: true }`.
+- **Separation of powers:** only the oracle writes identities; admin controls config/pause/freeze/rotation. Admin-as-delegate transfers (clawback) skip sender rules, pause, caps and lockups but the **recipient must still pass holder checks**; they emit `TransferApproved { forced: true }`. The hook loads the recipient identity before the sender's — keep `sdk/src/preflight.ts` in the same order.
+- **Program keypair** (`target/deploy/gatehook-keypair.json`) is gitignored; backup at `~/.config/solana/gatehook-program-keypair.json`. Devnet upgrade authority = deployer wallet `Dx7R…14g2`. Record every deploy in `docs/deployments.md`.
+- **Generated SDK must match the IDL:** CI fails if `pnpm generate` changes `sdk/src/generated`.
 - **Oracle never closes identities.** Revocation = upsert with `kycExpiry = 0` (preserves admin freeze + velocity). `revoke_identity` stays an admin tool.
 - **Oracle jobs recompute state at run time** (`domain/reconcile.ts`); never put desired params in the job row. Pass the injected `now` into anything that writes timestamps compared by the worker.
 - **Schema changes:** edit `oracle/src/db/schema.ts`, then `pnpm --filter @gatehook/oracle db:generate --name <change>`; commit the SQL.

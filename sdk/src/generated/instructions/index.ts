@@ -6,10 +6,12 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./acceptAdmin";
 export * from "./execute";
 export * from "./initExtraAccountMetas";
 export * from "./initMintConfig";
 export * from "./initRegistry";
+export * from "./proposeAdmin";
 export * from "./revokeIdentity";
 export * from "./setIdentityFrozen";
 export * from "./setOracle";

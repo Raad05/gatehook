@@ -8,6 +8,7 @@ import {
   generateKeyPairSigner,
   getBase64Decoder,
   type GetAccountInfoApi,
+  type GetMultipleAccountsApi,
   type Instruction,
   type KeyPairSigner,
   lamports,
@@ -84,32 +85,29 @@ export class Svm {
     this.svm.setClock(clock);
   }
 
-  /** Minimal `getAccountInfo` RPC backed by LiteSVM, for kit fetchers/resolvers. */
-  rpc(): Rpc<GetAccountInfoApi> {
+  /** Minimal `getAccountInfo` / `getMultipleAccounts` RPC backed by LiteSVM, for kit fetchers/resolvers. */
+  rpc(): Rpc<GetAccountInfoApi & GetMultipleAccountsApi> {
     const svm = this.svm;
     const decoder = getBase64Decoder();
+    const encode = (address: Address) => {
+      const account = svm.getAccount(address);
+      return account.exists
+        ? {
+            data: [decoder.decode(account.data) as Base64EncodedBytes, 'base64'],
+            executable: account.executable,
+            lamports: account.lamports,
+            owner: account.programAddress,
+            space: BigInt(account.data.length),
+            rentEpoch: 0n,
+          }
+        : null;
+    };
     return {
-      getAccountInfo(address: Address) {
-        return {
-          send: async () => {
-            const account = svm.getAccount(address);
-            return {
-              context: { slot: 0n },
-              value: account.exists
-                ? {
-                    data: [decoder.decode(account.data) as Base64EncodedBytes, 'base64'],
-                    executable: account.executable,
-                    lamports: account.lamports,
-                    owner: account.programAddress,
-                    space: BigInt(account.data.length),
-                    rentEpoch: 0n,
-                  }
-                : null,
-            };
-          },
-        };
-      },
-    } as unknown as Rpc<GetAccountInfoApi>;
+      getAccountInfo: (address: Address) => ({ send: async () => ({ context: { slot: 0n }, value: encode(address) }) }),
+      getMultipleAccounts: (addresses: Address[]) => ({
+        send: async () => ({ context: { slot: 0n }, value: addresses.map(encode) }),
+      }),
+    } as unknown as Rpc<GetAccountInfoApi & GetMultipleAccountsApi>;
   }
 
   async createMint(payer: KeyPairSigner, hookAuthority: Address, permanentDelegate?: Address): Promise<Address> {

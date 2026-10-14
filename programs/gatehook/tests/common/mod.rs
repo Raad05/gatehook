@@ -23,7 +23,8 @@ use {
 
 pub mod hook;
 
-pub const JURISDICTION_DE: u8 = 2;
+/// Index of `DE` in `sdk/src/jurisdictions.ts`.
+pub const JURISDICTION_DE: u8 = 58;
 pub const DECIMALS: u8 = 6;
 
 pub struct Ctx {
@@ -49,7 +50,12 @@ impl Ctx {
         svm.airdrop(&oracle.pubkey(), 10_000_000_000).unwrap();
 
         let registry = registry_pda(&issuer.pubkey());
-        let mut ctx = Self { svm, issuer, oracle, registry };
+        let mut ctx = Self {
+            svm,
+            issuer,
+            oracle,
+            registry,
+        };
         let ix = ctx.init_registry_ix();
         ctx.send(&[ix], &[&ctx.issuer.insecure_clone()]).unwrap();
         ctx
@@ -117,7 +123,13 @@ impl Ctx {
                 .unwrap();
         let lamports = self.svm.minimum_balance_for_rent_exemption(space);
         let mut ixs = vec![
-            create_account_ix(&payer.pubkey(), &mint.pubkey(), lamports, space as u64, &spl_token_2022::ID),
+            create_account_ix(
+                &payer.pubkey(),
+                &mint.pubkey(),
+                lamports,
+                space as u64,
+                &spl_token_2022::ID,
+            ),
             transfer_hook::instruction::initialize(
                 &spl_token_2022::ID,
                 &mint.pubkey(),
@@ -161,7 +173,13 @@ impl Ctx {
         .unwrap();
         let lamports = self.svm.minimum_balance_for_rent_exemption(space);
         let ixs = [
-            create_account_ix(&payer.pubkey(), &account.pubkey(), lamports, space as u64, &spl_token_2022::ID),
+            create_account_ix(
+                &payer.pubkey(),
+                &account.pubkey(),
+                lamports,
+                space as u64,
+                &spl_token_2022::ID,
+            ),
             spl_token_2022::instruction::initialize_account3(
                 &spl_token_2022::ID,
                 &account.pubkey(),
@@ -190,10 +208,12 @@ impl Ctx {
 
     pub fn token_balance(&self, account: &Pubkey) -> u64 {
         let data = self.svm.get_account(account).unwrap().data;
-        spl_token_2022::extension::StateWithExtensions::<spl_token_2022::state::Account>::unpack(&data)
-            .unwrap()
-            .base
-            .amount
+        spl_token_2022::extension::StateWithExtensions::<spl_token_2022::state::Account>::unpack(
+            &data,
+        )
+        .unwrap()
+        .base
+        .amount
     }
 
     pub fn set_time(&mut self, unix_timestamp: i64) {
@@ -205,7 +225,10 @@ impl Ctx {
     pub fn init_registry_ix(&self) -> Instruction {
         Instruction::new_with_bytes(
             gatehook::id(),
-            &gatehook::instruction::InitRegistry { oracle: self.oracle.pubkey() }.data(),
+            &gatehook::instruction::InitRegistry {
+                oracle: self.oracle.pubkey(),
+            }
+            .data(),
             gatehook::accounts::InitRegistry {
                 issuer: self.issuer.pubkey(),
                 registry: self.registry,
@@ -215,7 +238,12 @@ impl Ctx {
         )
     }
 
-    pub fn init_mint_config_ix(&self, admin: &Pubkey, mint: &Pubkey, rules: ComplianceRules) -> Instruction {
+    pub fn init_mint_config_ix(
+        &self,
+        admin: &Pubkey,
+        mint: &Pubkey,
+        rules: ComplianceRules,
+    ) -> Instruction {
         Instruction::new_with_bytes(
             gatehook::id(),
             &gatehook::instruction::InitMintConfig { rules }.data(),
@@ -240,7 +268,12 @@ impl Ctx {
         .to_account_metas(None)
     }
 
-    pub fn update_config_ix(&self, admin: &Pubkey, mint: &Pubkey, rules: ComplianceRules) -> Instruction {
+    pub fn update_config_ix(
+        &self,
+        admin: &Pubkey,
+        mint: &Pubkey,
+        rules: ComplianceRules,
+    ) -> Instruction {
         Instruction::new_with_bytes(
             gatehook::id(),
             &gatehook::instruction::UpdateConfig { rules }.data(),
@@ -260,12 +293,20 @@ impl Ctx {
         Instruction::new_with_bytes(
             gatehook::id(),
             &gatehook::instruction::SetOracle { oracle }.data(),
-            gatehook::accounts::SetOracle { admin: *admin, registry: self.registry }
-                .to_account_metas(None),
+            gatehook::accounts::SetOracle {
+                admin: *admin,
+                registry: self.registry,
+            }
+            .to_account_metas(None),
         )
     }
 
-    pub fn upsert_identity_ix(&self, oracle: &Pubkey, wallet: Pubkey, params: IdentityParams) -> Instruction {
+    pub fn upsert_identity_ix(
+        &self,
+        oracle: &Pubkey,
+        wallet: Pubkey,
+        params: IdentityParams,
+    ) -> Instruction {
         Instruction::new_with_bytes(
             gatehook::id(),
             &gatehook::instruction::UpsertIdentity { wallet, params }.data(),
@@ -289,7 +330,12 @@ impl Ctx {
         .to_account_metas(None)
     }
 
-    pub fn set_identity_frozen_ix(&self, authority: &Pubkey, wallet: &Pubkey, frozen: bool) -> Instruction {
+    pub fn set_identity_frozen_ix(
+        &self,
+        authority: &Pubkey,
+        wallet: &Pubkey,
+        frozen: bool,
+    ) -> Instruction {
         Instruction::new_with_bytes(
             gatehook::id(),
             &gatehook::instruction::SetIdentityFrozen { frozen }.data(),
@@ -326,7 +372,12 @@ impl Ctx {
 
     /// Accounts 5.. of the hook as Token-2022 must receive them, plus the hook
     /// program and validation account.
-    pub fn hook_extra_metas(&self, mint: &Pubkey, from_owner: &Pubkey, to_owner: &Pubkey) -> Vec<AccountMeta> {
+    pub fn hook_extra_metas(
+        &self,
+        mint: &Pubkey,
+        from_owner: &Pubkey,
+        to_owner: &Pubkey,
+    ) -> Vec<AccountMeta> {
         vec![
             AccountMeta::new_readonly(config_pda(mint), false),
             AccountMeta::new_readonly(self.registry, false),
@@ -360,13 +411,18 @@ impl Ctx {
             DECIMALS,
         )
         .unwrap();
-        ix.accounts.extend(self.hook_extra_metas(mint, from_owner, to_owner));
+        ix.accounts
+            .extend(self.hook_extra_metas(mint, from_owner, to_owner));
         ix
     }
 }
 
 pub fn extra_metas_pda(mint: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[gatehook::EXTRA_ACCOUNT_METAS_SEED, mint.as_ref()], &gatehook::id()).0
+    Pubkey::find_program_address(
+        &[gatehook::EXTRA_ACCOUNT_METAS_SEED, mint.as_ref()],
+        &gatehook::id(),
+    )
+    .0
 }
 
 pub fn registry_pda(issuer: &Pubkey) -> Pubkey {
@@ -387,7 +443,13 @@ pub fn identity_pda(registry: &Pubkey, wallet: &Pubkey) -> Pubkey {
 
 /// System program `CreateAccount` (variant 0), encoded by hand to avoid an
 /// extra system-interface dependency.
-fn create_account_ix(from: &Pubkey, to: &Pubkey, lamports: u64, space: u64, owner: &Pubkey) -> Instruction {
+fn create_account_ix(
+    from: &Pubkey,
+    to: &Pubkey,
+    lamports: u64,
+    space: u64,
+    owner: &Pubkey,
+) -> Instruction {
     let mut data = Vec::with_capacity(52);
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&lamports.to_le_bytes());

@@ -1,10 +1,17 @@
-import type { Address, GetAccountInfoApi, Rpc } from '@solana/kit';
-import { fetchSysvarClock } from '@solana/sysvars';
+import {
+  type Address,
+  assertAccountExists,
+  fetchEncodedAccounts,
+  type GetAccountInfoApi,
+  type GetMultipleAccountsApi,
+  type Rpc,
+} from '@solana/kit';
+import { getSysvarClockDecoder, SYSVAR_CLOCK_ADDRESS } from '@solana/sysvars';
 import {
   type ComplianceConfig,
+  decodeIdentity,
+  decodeRegistry,
   fetchComplianceConfig,
-  fetchMaybeIdentity,
-  fetchRegistry,
   findConfigPda,
   findIdentityPda,
   type GatehookError,
@@ -66,6 +73,20 @@ const RECIPIENT_ERRORS = [
   GATEHOOK_ERROR__RECIPIENT_JURISDICTION_NOT_ALLOWED,
 ] as const;
 
+/** First failing holder check, or null. `errors` = [frozen, expired, tier, jurisdiction]. */
+function holderError(
+  rules: ComplianceConfig['rules'],
+  holder: Identity,
+  now: bigint,
+  [frozen, expired, tier, jurisdiction]: readonly [GatehookError, GatehookError, GatehookError, GatehookError],
+): GatehookError | null {
+  if (holder.frozen) return frozen;
+  if (holder.kycExpiry <= now) return expired;
+  if (!isTierAllowed(rules, holder.tier)) return tier;
+  if (!isJurisdictionAllowed(rules, holder.jurisdiction)) return jurisdiction;
+  return null;
+}
+
 /**
  * Off-chain mirror of the hook's `execute`, in the same order, returning the
  * error the transfer would fail with. Use for UX; the chain is authoritative.
@@ -74,27 +95,22 @@ export function preflightTransfer(input: PreflightInput): PreflightResult {
   const { config, registry, sender, recipient, amount, now } = input;
   const rules = config.rules;
 
+  if (!recipient || recipient.registry !== config.registry || recipient.wallet !== input.destinationOwner) {
+    return reject(GATEHOOK_ERROR__RECIPIENT_IDENTITY_NOT_FOUND);
+  }
+  // Admin-as-delegate (clawback): only the recipient must be valid.
   if (input.authority === registry.admin && input.authority !== input.sourceOwner) {
-    return { ok: true, forced: true };
+    const error = holderError(rules, recipient, now, RECIPIENT_ERRORS);
+    return error === null ? { ok: true, forced: true } : reject(error);
   }
   if (!sender || sender.registry !== config.registry || sender.wallet !== input.sourceOwner) {
     return reject(GATEHOOK_ERROR__SENDER_IDENTITY_NOT_FOUND);
   }
-  if (!recipient || recipient.registry !== config.registry || recipient.wallet !== input.destinationOwner) {
-    return reject(GATEHOOK_ERROR__RECIPIENT_IDENTITY_NOT_FOUND);
-  }
   if (config.paused) return reject(GATEHOOK_ERROR__PAUSED);
   if (rules.maxTxAmount > 0n && amount > rules.maxTxAmount) return reject(GATEHOOK_ERROR__AMOUNT_EXCEEDS_MAX);
 
-  for (const [holder, [frozen, expired, tier, jurisdiction]] of [
-    [sender, SENDER_ERRORS],
-    [recipient, RECIPIENT_ERRORS],
-  ] as const) {
-    if (holder.frozen) return reject(frozen);
-    if (holder.kycExpiry <= now) return reject(expired);
-    if (!isTierAllowed(rules, holder.tier)) return reject(tier);
-    if (!isJurisdictionAllowed(rules, holder.jurisdiction)) return reject(jurisdiction);
-  }
+  const holderErr = holderError(rules, sender, now, SENDER_ERRORS) ?? holderError(rules, recipient, now, RECIPIENT_ERRORS);
+  if (holderErr !== null) return reject(holderErr);
 
   if (sender.tier === Tier.RegSNonUs && now < rules.regSComplianceUntil && recipient.jurisdiction === JURISDICTION_US) {
     return reject(GATEHOOK_ERROR__REG_S_RESTRICTED);
@@ -121,9 +137,12 @@ export type PreflightFromChainInput = {
   amount: bigint;
 };
 
-/** Fetches config, registry, identities and clock, then runs `preflightTransfer`. */
+/**
+ * Fetches config, then registry + both identities + clock in a single
+ * `getMultipleAccounts` call (2 RPC requests total), and runs `preflightTransfer`.
+ */
 export async function preflightTransferFromChain(
-  rpc: Rpc<GetAccountInfoApi>,
+  rpc: Rpc<GetAccountInfoApi & GetMultipleAccountsApi>,
   input: PreflightFromChainInput,
 ): Promise<PreflightResult> {
   const [configAddress] = await findConfigPda({ mint: input.mint });
@@ -132,21 +151,25 @@ export async function preflightTransferFromChain(
     findIdentityPda({ registry: config.data.registry, wallet: input.sourceOwner }),
     findIdentityPda({ registry: config.data.registry, wallet: input.destinationOwner }),
   ]);
-  const [registry, sender, recipient, clock] = await Promise.all([
-    fetchRegistry(rpc, config.data.registry),
-    fetchMaybeIdentity(rpc, senderAddress),
-    fetchMaybeIdentity(rpc, recipientAddress),
-    fetchSysvarClock(rpc),
+  const [registryAccount, senderAccount, recipientAccount, clockAccount] = await fetchEncodedAccounts(rpc, [
+    config.data.registry,
+    senderAddress,
+    recipientAddress,
+    SYSVAR_CLOCK_ADDRESS,
   ]);
+  assertAccountExists(registryAccount!);
+  assertAccountExists(clockAccount!);
+  const sender = decodeIdentity(senderAccount!);
+  const recipient = decodeIdentity(recipientAccount!);
   return preflightTransfer({
     config: config.data,
-    registry: registry.data,
+    registry: decodeRegistry(registryAccount).data,
     sender: sender.exists ? sender.data : null,
     recipient: recipient.exists ? recipient.data : null,
     sourceOwner: input.sourceOwner,
     destinationOwner: input.destinationOwner,
     authority: input.authority ?? input.sourceOwner,
     amount: input.amount,
-    now: clock.unixTimestamp,
+    now: getSysvarClockDecoder().decode(clockAccount.data).unixTimestamp,
   });
 }

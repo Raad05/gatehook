@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import Fastify, { type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from './db/client.ts';
@@ -53,6 +53,9 @@ export function buildApp(deps: AppDeps) {
     if (error instanceof HttpError) {
       return reply.status(error.status).send({ error: error.code, message: error.message });
     }
+    if (error instanceof z.ZodError) {
+      return reply.status(400).send({ error: 'invalid_request', message: z.prettifyError(error) });
+    }
     const status = (error as { statusCode?: number }).statusCode;
     if (status && status < 500) return reply.status(status).send({ error: 'bad_request', message: (error as Error).message });
     req.log.error(error);
@@ -103,7 +106,10 @@ export function buildApp(deps: AppDeps) {
     const { status, wallet } = z
       .object({ status: z.enum(JOB_STATUSES).optional(), wallet: z.string().optional() })
       .parse(req.query);
-    const where = status ? eq(schema.onchainJobs.status, status) : wallet ? eq(schema.onchainJobs.wallet, wallet) : undefined;
+    const where = and(
+      status ? eq(schema.onchainJobs.status, status) : undefined,
+      wallet ? eq(schema.onchainJobs.wallet, wallet) : undefined,
+    );
     return deps.db.select().from(schema.onchainJobs).where(where).orderBy(desc(schema.onchainJobs.id)).limit(100);
   });
 

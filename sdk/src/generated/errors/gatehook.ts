@@ -64,6 +64,8 @@ export const GATEHOOK_ERROR__HOLDER_LOCKUP = 0x1786; // 6022
 export const GATEHOOK_ERROR__VELOCITY_LIMIT_EXCEEDED = 0x1787; // 6023
 /** MathOverflow: Arithmetic overflow */
 export const GATEHOOK_ERROR__MATH_OVERFLOW = 0x1788; // 6024
+/** NotPendingAdmin: Signer is not the pending admin */
+export const GATEHOOK_ERROR__NOT_PENDING_ADMIN = 0x1789; // 6025
 
 export type GatehookError =
   | typeof GATEHOOK_ERROR__AMOUNT_EXCEEDS_MAX
@@ -76,6 +78,7 @@ export type GatehookError =
   | typeof GATEHOOK_ERROR__MINT_MISMATCH
   | typeof GATEHOOK_ERROR__NOT_ADMIN
   | typeof GATEHOOK_ERROR__NOT_ADMIN_OR_ORACLE
+  | typeof GATEHOOK_ERROR__NOT_PENDING_ADMIN
   | typeof GATEHOOK_ERROR__NOT_TRANSFERRING
   | typeof GATEHOOK_ERROR__PAUSED
   | typeof GATEHOOK_ERROR__RECIPIENT_FROZEN
@@ -105,6 +108,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [GATEHOOK_ERROR__MINT_MISMATCH]: `Config does not belong to this mint`,
     [GATEHOOK_ERROR__NOT_ADMIN]: `Signer is not the registry admin`,
     [GATEHOOK_ERROR__NOT_ADMIN_OR_ORACLE]: `Signer is neither the registry admin nor the oracle`,
+    [GATEHOOK_ERROR__NOT_PENDING_ADMIN]: `Signer is not the pending admin`,
     [GATEHOOK_ERROR__NOT_TRANSFERRING]: `Hook invoked outside of a Token-2022 transfer`,
     [GATEHOOK_ERROR__PAUSED]: `Transfers are paused for this mint`,
     [GATEHOOK_ERROR__RECIPIENT_FROZEN]: `Recipient identity is frozen`,

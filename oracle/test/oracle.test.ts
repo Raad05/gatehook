@@ -11,7 +11,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 import { schema } from '../src/db/client.ts';
 import { MAX_ATTEMPTS } from '../src/domain/jobs.ts';
-import { sweepExpiringKyc } from '../src/domain/sweeper.ts';
+import { pruneLinkChallenges, sweepExpiringKyc } from '../src/domain/sweeper.ts';
 import { auth, createOracle, DE, Tier } from './harness.ts';
 
 type Oracle = Awaited<ReturnType<typeof createOracle>>;
@@ -153,6 +153,12 @@ describe('webhook security', () => {
 });
 
 describe('API auth and wallet linking', () => {
+  it('returns 400, not 500, for invalid query and path params', async () => {
+    o = await createOracle();
+    expect((await o.app.inject({ url: '/jobs?status=bogus', headers: auth })).statusCode).toBe(400);
+    expect((await o.app.inject({ method: 'POST', url: '/jobs/abc/retry', headers: auth })).statusCode).toBe(400);
+  });
+
   it('requires the API key except for health and webhooks', async () => {
     o = await createOracle();
     expect((await o.app.inject({ url: '/health' })).statusCode).toBe(200);
@@ -239,4 +245,18 @@ it('sweeper flags approvals expiring within the warning window', async () => {
   expect(expiring.map((a) => a.id)).toEqual(['soon']);
   const [config] = await findConfigPda({ mint: o.f.mint });
   expect(config).toBeTruthy();
+});
+
+it('prunes link challenges a day after expiry', async () => {
+  o = await createOracle();
+  await o.approve('app-1');
+  const wallet = await o.f.env.fundedSigner();
+  await o.app.inject({
+    method: 'POST',
+    url: `/wallets/${wallet.address}/challenge`,
+    headers: { ...auth, 'content-type': 'application/json' },
+    payload: { applicantId: 'app-1' },
+  });
+  expect(await pruneLinkChallenges(o.db, o.clock.now)).toBe(0);
+  expect(await pruneLinkChallenges(o.db, new Date(o.clock.now.getTime() + 2 * 86_400_000))).toBe(1);
 });
