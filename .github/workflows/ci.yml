@@ -51,9 +51,14 @@ jobs:
         if: steps.cli-cache.outputs.cache-hit != 'true'
         run: sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
 
+      # Outside the repo so rust-toolchain.toml (1.89) doesn't apply: anchor-cli's
+      # locked deps need a newer rustc than the program does.
       - name: Install Anchor CLI
         if: steps.cli-cache.outputs.cache-hit != 'true'
-        run: cargo install anchor-cli --version "${ANCHOR_VERSION}" --locked
+        working-directory: ${{ runner.temp }}
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo +stable install anchor-cli --version "${ANCHOR_VERSION}" --locked
 
       - name: Add CLIs to PATH
         run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
