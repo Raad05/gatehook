@@ -4,9 +4,11 @@ pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
+use spl_discriminator::SplDiscriminate;
+use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
 pub use constants::*;
-pub use instructions::{admin::*, identity::*};
+pub use instructions::{admin::*, hook::*, identity::*};
 pub use state::{config::*, identity::*, registry::*};
 
 declare_id!("HbNmR9zK6d4BMBgzEWixgp6L3QZh4aP66Am13MXsBkaA");
@@ -49,5 +51,15 @@ pub mod gatehook {
 
     pub fn revoke_identity(ctx: Context<ModifyIdentity>) -> Result<()> {
         crate::instructions::identity::revoke_identity::handle_revoke_identity(ctx)
+        }
+
+    pub fn init_extra_account_metas(ctx: Context<InitExtraAccountMetas>) -> Result<()> {
+        crate::instructions::hook::init_extra_account_metas::handle_init_extra_account_metas(ctx)
+    }
+
+    /// Transfer hook entrypoint, CPI'd by Token-2022 on every `transfer_checked`.
+    #[instruction(discriminator = ExecuteInstruction::SPL_DISCRIMINATOR_SLICE)]
+    pub fn execute(ctx: Context<Execute>, amount: u64) -> Result<()> {
+        crate::instructions::hook::execute::handle_execute(ctx, amount)
     }
 }

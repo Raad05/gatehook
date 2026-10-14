@@ -2,7 +2,7 @@
 
 use {
     anchor_lang::{
-        prelude::Pubkey,
+        prelude::{Clock, Pubkey},
         solana_program::{
             instruction::{AccountMeta, Instruction},
             system_program,
@@ -21,7 +21,10 @@ use {
     solana_transaction::versioned::VersionedTransaction,
 };
 
+pub mod hook;
+
 pub const JURISDICTION_DE: u8 = 2;
+pub const DECIMALS: u8 = 6;
 
 pub struct Ctx {
     pub svm: LiteSVM,
@@ -79,16 +82,29 @@ impl Ctx {
         T::try_deserialize(&mut account.data.as_slice()).ok()
     }
 
-    /// Creates a Token-2022 mint with the TransferHook extension.
+    /// Creates a Token-2022 mint (decimals 6, issuer = mint authority) with
+    /// the TransferHook extension.
     pub fn create_hook_mint(&mut self, hook_authority: &Pubkey, hook_program: &Pubkey) -> Pubkey {
+        self.create_mint(hook_authority, hook_program, None)
+    }
+
+    pub fn create_mint(
+        &mut self,
+        hook_authority: &Pubkey,
+        hook_program: &Pubkey,
+        permanent_delegate: Option<&Pubkey>,
+    ) -> Pubkey {
         let mint = Keypair::new();
         let payer = self.issuer.insecure_clone();
-        let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[
-            ExtensionType::TransferHook,
-        ])
-        .unwrap();
+        let mut extensions = vec![ExtensionType::TransferHook];
+        if permanent_delegate.is_some() {
+            extensions.push(ExtensionType::PermanentDelegate);
+        }
+        let space =
+            ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
+                .unwrap();
         let lamports = self.svm.minimum_balance_for_rent_exemption(space);
-        let ixs = [
+        let mut ixs = vec![
             create_account_ix(&payer.pubkey(), &mint.pubkey(), lamports, space as u64, &spl_token_2022::ID),
             transfer_hook::instruction::initialize(
                 &spl_token_2022::ID,
@@ -97,17 +113,81 @@ impl Ctx {
                 Some(*hook_program),
             )
             .unwrap(),
+        ];
+        if let Some(delegate) = permanent_delegate {
+            ixs.push(
+                spl_token_2022::instruction::initialize_permanent_delegate(
+                    &spl_token_2022::ID,
+                    &mint.pubkey(),
+                    delegate,
+                )
+                .unwrap(),
+            );
+        }
+        ixs.push(
             spl_token_2022::instruction::initialize_mint2(
                 &spl_token_2022::ID,
                 &mint.pubkey(),
                 &payer.pubkey(),
                 None,
-                6,
+                DECIMALS,
+            )
+            .unwrap(),
+        );
+        self.send(&ixs, &[&payer, &mint]).unwrap();
+        mint.pubkey()
+    }
+
+    /// Token account sized for the TransferHookAccount extension required by
+    /// hook mints.
+    pub fn create_token_account(&mut self, mint: &Pubkey, owner: &Pubkey) -> Pubkey {
+        let account = Keypair::new();
+        let payer = self.issuer.insecure_clone();
+        let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Account>(&[
+            ExtensionType::TransferHookAccount,
+        ])
+        .unwrap();
+        let lamports = self.svm.minimum_balance_for_rent_exemption(space);
+        let ixs = [
+            create_account_ix(&payer.pubkey(), &account.pubkey(), lamports, space as u64, &spl_token_2022::ID),
+            spl_token_2022::instruction::initialize_account3(
+                &spl_token_2022::ID,
+                &account.pubkey(),
+                mint,
+                owner,
             )
             .unwrap(),
         ];
-        self.send(&ixs, &[&payer, &mint]).unwrap();
-        mint.pubkey()
+        self.send(&ixs, &[&payer, &account]).unwrap();
+        account.pubkey()
+    }
+
+    pub fn mint_to(&mut self, mint: &Pubkey, account: &Pubkey, amount: u64) {
+        let payer = self.issuer.insecure_clone();
+        let ix = spl_token_2022::instruction::mint_to(
+            &spl_token_2022::ID,
+            mint,
+            account,
+            &payer.pubkey(),
+            &[],
+            amount,
+        )
+        .unwrap();
+        self.send(&[ix], &[&payer]).unwrap();
+    }
+
+    pub fn token_balance(&self, account: &Pubkey) -> u64 {
+        let data = self.svm.get_account(account).unwrap().data;
+        spl_token_2022::extension::StateWithExtensions::<spl_token_2022::state::Account>::unpack(&data)
+            .unwrap()
+            .base
+            .amount
+    }
+
+    pub fn set_time(&mut self, unix_timestamp: i64) {
+        let mut clock: Clock = self.svm.get_sysvar();
+        clock.unix_timestamp = unix_timestamp;
+        self.svm.set_sysvar(&clock);
     }
 
     pub fn init_registry_ix(&self) -> Instruction {
@@ -212,6 +292,69 @@ impl Ctx {
             self.modify_identity_accounts(authority, wallet),
         )
     }
+}
+
+impl Ctx {
+    pub fn init_extra_account_metas_ix(&self, admin: &Pubkey, mint: &Pubkey) -> Instruction {
+        Instruction::new_with_bytes(
+            gatehook::id(),
+            &gatehook::instruction::InitExtraAccountMetas {}.data(),
+            gatehook::accounts::InitExtraAccountMetas {
+                admin: *admin,
+                registry: self.registry,
+                mint: *mint,
+                config: config_pda(mint),
+                extra_account_meta_list: extra_metas_pda(mint),
+                token_program: spl_token_2022::ID,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        )
+    }
+
+    /// Accounts 5.. of the hook as Token-2022 must receive them, plus the hook
+    /// program and validation account.
+    pub fn hook_extra_metas(&self, mint: &Pubkey, from_owner: &Pubkey, to_owner: &Pubkey) -> Vec<AccountMeta> {
+        vec![
+            AccountMeta::new_readonly(config_pda(mint), false),
+            AccountMeta::new_readonly(self.registry, false),
+            AccountMeta::new(identity_pda(&self.registry, from_owner), false),
+            AccountMeta::new_readonly(identity_pda(&self.registry, to_owner), false),
+            AccountMeta::new_readonly(gatehook::id(), false),
+            AccountMeta::new_readonly(extra_metas_pda(mint), false),
+        ]
+    }
+
+    /// `transfer_checked` with the hook's extra accounts appended.
+    #[allow(clippy::too_many_arguments)]
+    pub fn transfer_ix(
+        &self,
+        source: &Pubkey,
+        mint: &Pubkey,
+        destination: &Pubkey,
+        authority: &Pubkey,
+        from_owner: &Pubkey,
+        to_owner: &Pubkey,
+        amount: u64,
+    ) -> Instruction {
+        let mut ix = spl_token_2022::instruction::transfer_checked(
+            &spl_token_2022::ID,
+            source,
+            mint,
+            destination,
+            authority,
+            &[],
+            amount,
+            DECIMALS,
+        )
+        .unwrap();
+        ix.accounts.extend(self.hook_extra_metas(mint, from_owner, to_owner));
+        ix
+    }
+}
+
+pub fn extra_metas_pda(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[gatehook::EXTRA_ACCOUNT_METAS_SEED, mint.as_ref()], &gatehook::id()).0
 }
 
 pub fn registry_pda(issuer: &Pubkey) -> Pubkey {

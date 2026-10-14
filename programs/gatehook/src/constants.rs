@@ -21,3 +21,7 @@ pub const JURISDICTION_UNSET: u8 = 0;
 pub const JURISDICTION_US: u8 = 1;
 
 pub const ACCOUNT_VERSION: u8 = 1;
+
+/// Fixed by the transfer hook interface.
+#[constant]
+pub const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
