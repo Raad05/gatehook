@@ -23,6 +23,7 @@ see [`docs/deployments.md`](docs/deployments.md).
 
 | Doc | For |
 |---|---|
+| [How it works](docs/how-it-works.md) | plain-language overview and usage flow |
 | [Issuer runbook](docs/issuer-runbook.md) | creating tokens, operating the oracle, incidents, mainnet checklist |
 | [DEX integration](docs/dex-integration.md) | building hooked transfers, venue identities, error codes |
 | [Security review](docs/security-review.md) | findings, fixes, residual risks |
